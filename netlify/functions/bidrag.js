@@ -9,7 +9,7 @@ exports.handler = async (event) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, X-Admin-Kode",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -50,6 +50,69 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify({ media, data }) };
     } catch (e) {
       return { statusCode: 502, headers: cors, body: JSON.stringify({ error: "Bildehenting feilet: " + String(e.message || e) }) };
+    }
+  }
+
+  // --- Analyse (POST) ---
+  // Panelet POSTer {bilde:<url>, prompt:<tekst>}. Funksjonen henter bildet,
+  // kaller Anthropic med sin egen nøkkel (ANTHROPIC_API_KEY), og gir tekst tilbake.
+  if (event.httpMethod === "POST") {
+    const KEY = process.env.ANTHROPIC_API_KEY;
+    if (!KEY) {
+      return { statusCode: 500, headers: cors, body: JSON.stringify({ error: "ANTHROPIC_API_KEY mangler i miljøvariabler." }) };
+    }
+    let inn;
+    try { inn = JSON.parse(event.body || "{}"); }
+    catch (_) { return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Ugyldig forespørsel." }) }; }
+
+    const bUrl = inn.bilde;
+    const prompt = inn.prompt;
+    if (!bUrl || !prompt) {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Mangler bilde eller prompt." }) };
+    }
+    if (!/^https:\/\/[a-z0-9.-]*cloudfront\.net\//i.test(bUrl) &&
+        !/^https:\/\/[a-z0-9.-]*netlify\./i.test(bUrl)) {
+      return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Ugyldig bilde-adresse." }) };
+    }
+
+    try {
+      // Hent bildet
+      const ir = await fetch(bUrl);
+      if (!ir.ok) return { statusCode: 502, headers: cors, body: JSON.stringify({ error: "Fikk ikke hentet bildet (" + ir.status + ")." }) };
+      let media = ir.headers.get("content-type") || "image/jpeg";
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) media = "image/jpeg";
+      const bilde64 = Buffer.from(await ir.arrayBuffer()).toString("base64");
+
+      // Kall Anthropic
+      const ar = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: media, data: bilde64 } },
+              { type: "text", text: prompt },
+            ],
+          }],
+        }),
+      });
+      if (!ar.ok) {
+        let m = "Analyse-tjenesten svarte " + ar.status;
+        try { const e = await ar.json(); if (e.error && e.error.message) m = e.error.message; } catch (_) {}
+        return { statusCode: 502, headers: cors, body: JSON.stringify({ error: m }) };
+      }
+      const ad = await ar.json();
+      const tekst = (ad.content || []).filter((x) => x.type === "text").map((x) => x.text).join("\n").trim();
+      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify({ tekst }) };
+    } catch (e) {
+      return { statusCode: 502, headers: cors, body: JSON.stringify({ error: "Analyse feilet: " + String(e.message || e) }) };
     }
   }
 
