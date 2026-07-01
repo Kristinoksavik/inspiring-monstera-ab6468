@@ -34,19 +34,43 @@ exports.handler = async (event) => {
   const auth = { headers: { Authorization: `Bearer ${TOKEN}` } };
 
   try {
-    // 1) Finn site-ID ut fra host-navnet funksjonen kjører på
-    const host = event.headers.host || "";
-    // Hent alle skjemaer på kontoen, filtrer på skjemanavn
-    const formsRes = await fetch(`${api}/forms`, auth);
-    if (!formsRes.ok) throw new Error(`Netlify /forms svarte ${formsRes.status}`);
-    const forms = await formsRes.json();
+    // Netlify gir funksjonen site-ID automatisk via miljøvariabelen SITE_ID.
+    const siteId = process.env.SITE_ID;
+
+    // 1) Hent skjemaer — først for DENNE siden (mest robust), ellers hele kontoen.
+    let forms = null;
+    let sisteStatus = null;
+
+    if (siteId) {
+      const r = await fetch(`${api}/sites/${siteId}/forms`, auth);
+      sisteStatus = r.status;
+      if (r.ok) forms = await r.json();
+    }
+
+    // Fallback: kontonivå-ruten
+    if (!forms) {
+      const r = await fetch(`${api}/forms`, auth);
+      sisteStatus = r.status;
+      if (r.ok) forms = await r.json();
+    }
+
+    if (!forms) {
+      return {
+        statusCode: 502,
+        headers: cors,
+        body: JSON.stringify({
+          error: `Netlify svarte ${sisteStatus} da funksjonen spurte etter skjemaer. Dette skyldes nesten alltid at access-tokenet mangler tilgang. Lag et nytt token under User settings → Applications → Personal access tokens og oppdater NETLIFY_TOKEN.`,
+        }),
+      };
+    }
 
     const form = forms.find((f) => f.name === FORM_NAME);
     if (!form) {
+      const navn = forms.map((f) => f.name).join(", ") || "(ingen)";
       return {
         statusCode: 404,
         headers: cors,
-        body: JSON.stringify({ error: `Fant ikke skjema "${FORM_NAME}". Er Forms aktivert og har det kommet inn minst ett bidrag?` }),
+        body: JSON.stringify({ error: `Fant ikke skjema "${FORM_NAME}". Skjemaer funksjonen ser: ${navn}. Sjekk at FORM_NAME stemmer med ett av navnene over.` }),
       };
     }
 
