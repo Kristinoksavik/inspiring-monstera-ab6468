@@ -30,6 +30,29 @@ exports.handler = async (event) => {
     return { statusCode: 401, headers: cors, body: JSON.stringify({ error: "Feil adminkode." }) };
   }
 
+  // --- Bilde-henter ---
+  // Panelet kan ikke hente cloudfront-bildet direkte (CORS på file://).
+  // Kall ?bilde=<url> så henter funksjonen det og gir base64 tilbake.
+  const bildeUrl = event.queryStringParameters && event.queryStringParameters.bilde;
+  if (bildeUrl) {
+    try {
+      // Bare tillat Netlify sine egne bilde-verter (trygghet)
+      if (!/^https:\/\/[a-z0-9.-]*cloudfront\.net\//i.test(bildeUrl) &&
+          !/^https:\/\/[a-z0-9.-]*netlify\./i.test(bildeUrl)) {
+        return { statusCode: 400, headers: cors, body: JSON.stringify({ error: "Ugyldig bilde-adresse." }) };
+      }
+      const r = await fetch(bildeUrl);
+      if (!r.ok) return { statusCode: 502, headers: cors, body: JSON.stringify({ error: "Fikk ikke hentet bildet (" + r.status + ")." }) };
+      let media = r.headers.get("content-type") || "image/jpeg";
+      if (!/^image\/(jpeg|png|gif|webp)$/.test(media)) media = "image/jpeg";
+      const buf = Buffer.from(await r.arrayBuffer());
+      const data = buf.toString("base64");
+      return { statusCode: 200, headers: { ...cors, "Content-Type": "application/json" }, body: JSON.stringify({ media, data }) };
+    } catch (e) {
+      return { statusCode: 502, headers: cors, body: JSON.stringify({ error: "Bildehenting feilet: " + String(e.message || e) }) };
+    }
+  }
+
   const api = "https://api.netlify.com/api/v1";
   const auth = { headers: { Authorization: `Bearer ${TOKEN}` } };
 
