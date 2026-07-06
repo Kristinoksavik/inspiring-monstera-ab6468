@@ -638,7 +638,8 @@
         <span class="slider-value" id="scaleVal">80%</span>
       </div>
     </div>
-    <div class="slider-card">
+    <!-- Dybde-slider skjult 2026 — beholdt i DOM så blur-logikk og gamle dagbok-verk fungerer -->
+    <div class="slider-card" style="display:none">
       <div class="slider-row">
         <span class="slider-label" id="s3-bgblur">Dybde</span>
         <input type="range" id="bgBlurSlider" min="0" max="15" value="0">
@@ -1027,7 +1028,7 @@ const UI = {
         { title:'BIBLIOTEK', text:'Bakgrunnene du laster opp lagres her, så du kan bruke samme bakgrunn til mange ulike komposisjoner. Praktisk hvis du jobber i en spesifikk stil eller selger en serie.' },
         { title:'PORTRETT', text:'Last opp et bilde av personen, kjæledyret, eller objektet du vil male. AI fjerner bakgrunnen automatisk — selv komplekse motiver med hår eller pels håndteres godt.' },
         { title:'STEMNING', text:'Velg en stemning blant 9 filtre: akvarell, olje, vintage, drømmeaktig, sort/hvitt og mer. Prøv deg fram — dette er en flott måte å se hvordan ulike teknikker vil kle motivet før du legger pensel til lerret.' },
-        { title:'JUSTER', text:'Juster synlighet, størrelse og dybde (uskarp bakgrunn). Dra portrettet på lerretet for å plassere det. Dette gir deg en god peilepinn på komposisjonen før du begynner å male.' },
+        { title:'JUSTER', text:'Juster synlighet og størrelse. Dra portrettet på lerretet for å plassere det. Dette gir deg en god peilepinn på komposisjonen før du begynner å male.' },
         { title:'TEKST', text:'Legg til tekst hvis du vil — en tittel, et sitat, en signatur, eller bruk det til å lage invitasjoner, julekort, eller utstillingsplakater. Plassering, retning, fargevalg og synlighet kan tilpasses fritt.' },
         { title:'SIGNATUR', text:'Signér verket ditt med navnet ditt i håndskrift — som en ekte kunstner. Velg størrelse, retning, gjennomsiktighet og hvilket hjørne den skal stå i, eller dra den dit du vil. Helt valgfritt.' },
         { title:'DAGBOK', text:'Lagre komposisjoner i dagboken. Klikk på en for å se den større, redigere den, eller laste den ned. Bygg opp et bibliotek av ideer over tid — perfekt som inspirasjon for kommende malerier.' },
@@ -1124,7 +1125,7 @@ const UI = {
         { title:'BIBLIOTEK', text:'Bakgrunderna du laddar upp sparas här, så du kan använda samma bakgrund till många olika kompositioner. Praktiskt om du arbetar i en specifik stil eller säljer en serie.' },
         { title:'PORTRÄTT', text:'Ladda upp en bild av personen, husdjuret eller objektet du vill måla. AI tar bort bakgrunden automatiskt — även komplexa motiv med hår eller päls hanteras bra.' },
         { title:'STÄMNING', text:'Välj en stämning bland 9 filter: akvarell, olja, vintage, drömlik, svartvit och mer. Prova dig fram — detta är ett bra sätt att se hur olika tekniker klär motivet innan du sätter pensel till duk.' },
-        { title:'JUSTERA', text:'Justera synlighet, storlek och djup (oskarp bakgrund). Dra porträttet på duken för att placera det. Detta ger dig en bra fingervisning om kompositionen innan du börjar måla.' },
+        { title:'JUSTERA', text:'Justera synlighet och storlek. Dra porträttet på duken för att placera det. Detta ger dig en bra fingervisning om kompositionen innan du börjar måla.' },
         { title:'TEXT', text:'Lägg till text om du vill — en titel, ett citat, en signatur, eller använd det för att skapa inbjudningar, julkort, eller utställningsaffischer. Placering, riktning, färgval och synlighet kan anpassas fritt.' },
         { title:'SIGNATUR', text:'Signera ditt verk med ditt namn i handskrift — som en riktig konstnär. Välj storlek, riktning, genomskinlighet och vilket hörn den ska stå i, eller dra den dit du vill. Helt valfritt.' },
         { title:'DAGBOK', text:'Spara kompositioner i dagboken. Klicka på en för att se den större, redigera den, eller ladda ner den. Bygg upp ett bibliotek med idéer över tid — perfekt som inspiration för kommande målningar.' },
@@ -1221,7 +1222,7 @@ const UI = {
         { title:'BIBLIOTEK', text:'Baggrundene du uploader gemmes her, så du kan bruge samme baggrund til mange forskellige kompositioner. Praktisk hvis du arbejder i en specifik stil eller sælger en serie.' },
         { title:'PORTRÆT', text:'Upload et billede af personen, kæledyret eller objektet du vil male. AI fjerner baggrunden automatisk — selv komplekse motiver med hår eller pels håndteres godt.' },
         { title:'STEMNING', text:'Vælg en stemning blandt 9 filtre: akvarel, olie, vintage, drømmeagtig, sort/hvid og mere. Prøv dig frem — dette er en god måde at se hvordan forskellige teknikker vil klæde motivet før du sætter pensel til lærred.' },
-        { title:'JUSTER', text:'Juster synlighed, størrelse og dybde (uskarp baggrund). Træk portrættet på lærredet for at placere det. Dette giver dig en god pejlemærke for kompositionen før du begynder at male.' },
+        { title:'JUSTER', text:'Juster synlighed og størrelse. Træk portrættet på lærredet for at placere det. Dette giver dig en god pejlemærke for kompositionen før du begynder at male.' },
         { title:'TEKST', text:'Tilføj tekst hvis du vil — en titel, et citat, en signatur, eller brug det til at lave invitationer, julekort, eller udstillingsplakater. Placering, retning, farvevalg og synlighed kan tilpasses frit.' },
         { title:'SIGNATUR', text:'Signér dit værk med dit navn i håndskrift — som en ægte kunstner. Vælg størrelse, retning, gennemsigtighed og hvilket hjørne den skal stå i, eller træk den hen hvor du vil. Helt valgfrit.' },
         { title:'DAGBOG', text:'Gem kompositioner i dagbogen. Klik på en for at se den større, redigere den, eller downloade den. Byg op et bibliotek af idéer over tid — perfekt som inspiration til kommende malerier.' },
@@ -1318,7 +1319,7 @@ const UI = {
         { title:'LIBRARY', text:'Backgrounds you upload are saved here, so you can reuse the same background for many different compositions. Useful if you work in a specific style or sell a series.' },
         { title:'PORTRAIT', text:'Upload a photo of the person, pet, or object you want to paint. AI removes the background automatically — even complex subjects with hair or fur are handled well.' },
         { title:'MOOD', text:'Choose a mood from 9 filters: watercolor, oil, vintage, dreamy, B&W and more. Try them out — a great way to see how different techniques will suit the subject before you put brush to canvas.' },
-        { title:'ADJUST', text:'Adjust opacity, size, and depth (background blur). Drag the portrait on the canvas to place it. This gives you a good sense of the composition before you start painting.' },
+        { title:'ADJUST', text:'Adjust opacity and size. Drag the portrait on the canvas to place it. This gives you a good sense of the composition before you start painting.' },
         { title:'TEXT', text:'Add text if you want — a title, quote, signature, or use it to make invitations, Christmas cards, or exhibition posters. Position, direction, color and opacity can all be adjusted.' },
         { title:'SIGNATURE', text:'Sign your work with your name in handwriting — like a real artist. Choose size, direction, opacity and which corner it sits in, or drag it wherever you like. Completely optional.' },
         { title:'DIARY', text:'Save compositions to the diary. Click one to see it larger, edit it, or download. Build a library of ideas over time — perfect inspiration for upcoming paintings.' },
