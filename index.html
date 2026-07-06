@@ -903,7 +903,7 @@
 <!-- ═════════════════════════ HIDDEN NETLIFY FORM ═════════════════════════ -->
 <!-- This form is parsed by Netlify at build time so it knows to accept submissions.
      The actual submission is done via JavaScript using FormData.
-     Using data-netlify and data-netlify-honeypot (modern Netlify Forms syntax). -->
+     Uses the netlify + netlify-honeypot attributes (not data-netlify). -->
 <form name="fotomaleri-konkurranse" netlify netlify-honeypot="bot-field" enctype="multipart/form-data" hidden>
   <input type="hidden" name="form-name" value="fotomaleri-konkurranse">
   <input name="bot-field">
