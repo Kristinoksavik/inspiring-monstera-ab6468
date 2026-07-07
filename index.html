@@ -600,6 +600,7 @@
       <div style="display:flex; gap:8px; justify-content:center; margin-top:0.75rem; flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="document.getElementById('portraitUpload').click()">📷 <span id="s2-new">Velg nytt bilde</span></button>
         <button class="btn btn-secondary" id="redoBgRemove" onclick="redoBackgroundRemoval()">↻ <span id="s2-redo">Prøv AI på nytt</span></button>
+        <button class="btn btn-secondary" id="useWithBgBtn" onclick="useOriginalWithBg()">🖼️ <span id="s2-usebg">Bruk med bakgrunn</span></button>
       </div>
     </div>
 
@@ -834,6 +835,20 @@
 </div>
 
 <!-- ═════════════════════════ MODAL: DOWNLOAD ═════════════════════════ -->
+<div id="bgChoiceModal" class="modal-bg hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="bgc-title">Hvordan vil du bruke bildet?</div>
+      <button class="modal-close" onclick="closeBgChoiceModal()">×</button>
+    </div>
+    <div style="font-size:13px; color:#666; line-height:1.5; margin-bottom:1.25rem;" id="bgc-sub">Du kan la AI fjerne bakgrunnen, eller bruke hele bildet som et eget lag du plasserer og demper inn.</div>
+    <div class="modal-actions" style="flex-direction:column;">
+      <button class="btn btn-primary" id="bgc-remove" onclick="chooseBgRemoval(true)" style="flex:none; width:100%;">✂️ <span id="bgc-remove-label">Fjern bakgrunn (AI)</span></button>
+      <button class="btn btn-secondary" id="bgc-keep" onclick="chooseBgRemoval(false)" style="flex:none; width:100%;">🖼️ <span id="bgc-keep-label">Behold hele bildet</span></button>
+    </div>
+  </div>
+</div>
+
 <div id="downloadModal" class="modal-bg hidden">
   <div class="modal">
     <div class="modal-header">
@@ -955,6 +970,9 @@ const UI = {
           working:'Fjerner bakgrunn — kan ta opptil ett minutt første gang …',
           loading:'Laster AI-modell første gang (~170 MB). Gjøres bare én gang.',
           done:'Ferdig! Bakgrunnen er fjernet.',
+          keptTitle:'Bruk med bakgrunn', keepDone:'Klart! Bildet brukes som det er.',
+          askTitle:'Hvordan vil du bruke bildet?', askSub:'Du kan la AI fjerne bakgrunnen, eller bruke hele bildet som et eget lag du plasserer og demper inn.',
+          removeBg:'Fjern bakgrunn (AI)', keepBg:'Behold hele bildet', useWithBg:'Bruk med bakgrunn',
           error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.' },
     s3: { title:'Sett sammen og juster',
           sub:'Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.',
@@ -1052,6 +1070,9 @@ const UI = {
           working:'Tar bort bakgrunden — kan ta upp till en minut första gången …',
           loading:'Laddar AI-modell första gången (~170 MB). Görs bara en gång.',
           done:'Klar! Bakgrunden är borttagen.',
+          keptTitle:'Använd med bakgrund', keepDone:'Klart! Bilden används som den är.',
+          askTitle:'Hur vill du använda bilden?', askSub:'Du kan låta AI ta bort bakgrunden, eller använda hela bilden som ett eget lager du placerar och tonar in.',
+          removeBg:'Ta bort bakgrund (AI)', keepBg:'Behåll hela bilden', useWithBg:'Använd med bakgrund',
           error:'Något gick fel. Prova en annan bild eller försök igen.' },
     s3: { title:'Sätt ihop och justera',
           sub:'Välj en stämning, justera genomskinlighet och placering. Dra porträttet för att flytta det.',
@@ -1149,6 +1170,9 @@ const UI = {
           working:'Fjerner baggrund — kan tage op til et minut første gang …',
           loading:'Indlæser AI-model første gang (~170 MB). Gøres kun én gang.',
           done:'Færdig! Baggrunden er fjernet.',
+          keptTitle:'Brug med baggrund', keepDone:'Klart! Billedet bruges som det er.',
+          askTitle:'Hvordan vil du bruge billedet?', askSub:'Du kan lade AI fjerne baggrunden, eller bruge hele billedet som et eget lag du placerer og toner ind.',
+          removeBg:'Fjern baggrund (AI)', keepBg:'Behold hele billedet', useWithBg:'Brug med baggrund',
           error:'Noget gik galt. Prøv et andet billede, eller prøv igen.' },
     s3: { title:'Sæt sammen og juster',
           sub:'Vælg en stemning, juster gennemsigtighed og placering. Træk portrættet for at flytte det.',
@@ -1246,6 +1270,9 @@ const UI = {
           working:'Removing background — may take up to a minute the first time …',
           loading:'Loading AI model for the first time (~170 MB). One-time download.',
           done:'Done! Background removed.',
+          keptTitle:'Use with background', keepDone:'Done! The image is used as is.',
+          askTitle:'How would you like to use the image?', askSub:'Let AI remove the background, or use the whole image as its own layer that you place and fade in.',
+          removeBg:'Remove background (AI)', keepBg:'Keep the whole image', useWithBg:'Use with background',
           error:'Something went wrong. Try a different image, or try again.' },
     s3: { title:'Compose and adjust',
           sub:'Pick a mood, adjust opacity and position. Drag the portrait to move it.',
@@ -1737,6 +1764,11 @@ function setLang(l) {
   document.getElementById('s2-new').textContent = L.s2.newPic;
   document.getElementById('s2-back').textContent = L.s2.back;
   { const sk = document.getElementById('s2-skip'); if (sk && L.s2.skip) sk.textContent = L.s2.skip; }
+  { const ub = document.getElementById('s2-usebg'); if (ub && L.s2.useWithBg) ub.textContent = L.s2.useWithBg; }
+  { const e = document.getElementById('bgc-title'); if (e && L.s2.askTitle) e.textContent = L.s2.askTitle; }
+  { const e = document.getElementById('bgc-sub'); if (e && L.s2.askSub) e.textContent = L.s2.askSub; }
+  { const e = document.getElementById('bgc-remove-label'); if (e && L.s2.removeBg) e.textContent = L.s2.removeBg; }
+  { const e = document.getElementById('bgc-keep-label'); if (e && L.s2.keepBg) e.textContent = L.s2.keepBg; }
   document.getElementById('s2-next').textContent = (l==='en'?'Next →':'Neste →');
 
   // Step 3
@@ -2096,13 +2128,47 @@ document.getElementById('portraitUpload').addEventListener('change', async (e) =
     const dataUrl = await fileToDataUrl(file, 1400);
     state.portraitOriginal = dataUrl;
     saveWorkingState();
-    await processPortrait(dataUrl);
+    // Ask the user how to use the image before doing anything heavy.
+    openBgChoiceModal();
   } catch (err) {
     console.error(err);
     setBgStatus('err', UI[lang].s2.error);
   }
   e.target.value = '';
 });
+
+// Use the uploaded original as-is (with its background), as a plain layer.
+function useOriginalAsIs() {
+  if (!state.portraitOriginal) return;
+  state.portraitProcessed = state.portraitOriginal;
+  state.skipPortrait = false;
+  setBgStatus('ok', UI[lang].s2.keepDone);
+  document.getElementById('portraitPreview').classList.remove('hidden');
+  drawPortraitPreview();
+  document.getElementById('s2-next').disabled = false;
+  saveWorkingState();
+}
+
+// Button in the result view: switch to keeping the full image.
+function useOriginalWithBg() {
+  useOriginalAsIs();
+}
+
+function openBgChoiceModal() {
+  document.getElementById('bgChoiceModal').classList.remove('hidden');
+}
+function closeBgChoiceModal() {
+  document.getElementById('bgChoiceModal').classList.add('hidden');
+}
+async function chooseBgRemoval(removeIt) {
+  closeBgChoiceModal();
+  if (!state.portraitOriginal) return;
+  if (removeIt) {
+    await processPortrait(state.portraitOriginal);
+  } else {
+    useOriginalAsIs();
+  }
+}
 
 async function redoBackgroundRemoval() {
   if (state.portraitOriginal) {
