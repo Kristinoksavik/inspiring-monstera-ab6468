@@ -2462,8 +2462,10 @@ function drawMissingMessage(ctx, SIZE) {
     const p = getPos(e);
     const dx = p.x - lastX;
     const dy = p.y - lastY;
-    state.portraitPos.x = Math.max(0, Math.min(1, state.portraitPos.x + dx));
-    state.portraitPos.y = Math.max(0, Math.min(1, state.portraitPos.y + dy));
+    // Allow dragging the portrait nearly off-canvas: the centre may travel
+    // past the edges so only a sliver needs to remain on screen.
+    state.portraitPos.x = Math.max(-0.4, Math.min(1.4, state.portraitPos.x + dx));
+    state.portraitPos.y = Math.max(-0.4, Math.min(1.4, state.portraitPos.y + dy));
     lastX = p.x; lastY = p.y;
     scheduleRender();
   }
