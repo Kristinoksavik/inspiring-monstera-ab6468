@@ -86,6 +86,38 @@
   .upload-zone .sub { font-size:12px; color:#999; }
   .upload-zone input { display:none; }
 
+  /* ── Pexels-søk (portrett) ── */
+  .pexels-box { margin:1rem 0 0; }
+  .pexels-or {
+    text-align:center; font-size:12px; color:#999; text-transform:uppercase;
+    letter-spacing:0.06em; margin:0 0 0.6rem;
+  }
+  .pexels-search-row { display:flex; gap:8px; }
+  .pexels-input {
+    flex:1; min-width:0; padding:0.6rem 0.7rem;
+    border:1px solid #d8cfb8; border-radius:10px;
+    font-size:14px; font-family:inherit; color:#1a1a1a; background:#fff;
+  }
+  .pexels-input:focus { outline:none; border-color:#c4944a; }
+  .pexels-search-btn { flex:0 0 auto; padding:0.6rem 1.1rem; margin:0; }
+  .pexels-status { margin-top:8px; font-size:13px; color:#888; }
+  .pexels-grid {
+    display:grid; grid-template-columns:repeat(3, 1fr);
+    gap:6px; margin-top:8px;
+  }
+  .pexels-thumb {
+    position:relative; aspect-ratio:1/1; border-radius:8px; overflow:hidden;
+    cursor:pointer; border:1px solid #e6ddc9; background:#f5f5f3;
+    padding:0; transition:transform 0.1s, box-shadow 0.15s;
+  }
+  .pexels-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .pexels-thumb:hover { box-shadow:0 0 0 2px rgba(196,148,74,0.45); }
+  .pexels-thumb:active { transform:scale(0.97); }
+  .pexels-thumb:disabled { opacity:0.5; cursor:default; }
+  .pexels-thumb.loading::after {
+    content:''; position:absolute; inset:0; background:rgba(26,26,26,0.35);
+  }
+
   /* ── Library (saved backgrounds) ───────────────────────────────────────── */
   .library-grid {
     display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));
@@ -590,6 +622,20 @@
       <div class="sub" id="s2-upload-sub">På mobil: åpner kameraet</div>
     </label>
 
+    <!-- Pexels-søk: finn et portrettmotiv direkte i appen -->
+    <div class="pexels-box">
+      <div class="pexels-or" id="s2-pex-title">Eller søk etter et bilde</div>
+      <div class="pexels-search-row">
+        <input type="text" id="pexelsQuery" class="pexels-input" placeholder="" autocomplete="off">
+        <button class="btn btn-secondary pexels-search-btn" id="pexelsSearchBtn" type="button">
+          <span id="s2-pex-btn">Søk</span>
+        </button>
+      </div>
+      <p class="pexels-hint" id="s2-pex-hint" style="margin:6px 0 0; font-size:12px; color:#888;"></p>
+      <div class="pexels-status" id="pexelsStatus" style="display:none;"></div>
+      <div class="pexels-grid" id="pexelsGrid"></div>
+    </div>
+
     <div id="bgRemovalStatus" class="hidden"></div>
 
     <div id="portraitPreview" class="hidden" style="margin-top:1rem;">
@@ -973,7 +1019,8 @@ const UI = {
           keptTitle:'Bruk med bakgrunn', keepDone:'Klart! Bildet brukes som det er.',
           askTitle:'Hvordan vil du bruke bildet?', askSub:'Du kan la AI fjerne bakgrunnen, eller bruke hele bildet som et eget lag du plasserer og demper inn.',
           removeBg:'Fjern bakgrunn (AI)', keepBg:'Behold hele bildet', useWithBg:'Bruk med bakgrunn',
-          error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.' },
+          error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.',
+          pexTitle:'Eller søk etter et bilde', pexSearch:'Søk på Pexels …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …' },
     s3: { title:'Sett sammen og juster',
           sub:'Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.',
           moodLabel:'Stemning',
@@ -1073,7 +1120,8 @@ const UI = {
           keptTitle:'Använd med bakgrund', keepDone:'Klart! Bilden används som den är.',
           askTitle:'Hur vill du använda bilden?', askSub:'Du kan låta AI ta bort bakgrunden, eller använda hela bilden som ett eget lager du placerar och tonar in.',
           removeBg:'Ta bort bakgrund (AI)', keepBg:'Behåll hela bilden', useWithBg:'Använd med bakgrund',
-          error:'Något gick fel. Prova en annan bild eller försök igen.' },
+          error:'Något gick fel. Prova en annan bild eller försök igen.',
+          pexTitle:'Eller sök efter en bild', pexSearch:'Sök på Pexels …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …' },
     s3: { title:'Sätt ihop och justera',
           sub:'Välj en stämning, justera genomskinlighet och placering. Dra porträttet för att flytta det.',
           moodLabel:'Stämning',
@@ -1173,7 +1221,8 @@ const UI = {
           keptTitle:'Brug med baggrund', keepDone:'Klart! Billedet bruges som det er.',
           askTitle:'Hvordan vil du bruge billedet?', askSub:'Du kan lade AI fjerne baggrunden, eller bruge hele billedet som et eget lag du placerer og toner ind.',
           removeBg:'Fjern baggrund (AI)', keepBg:'Behold hele billedet', useWithBg:'Brug med baggrund',
-          error:'Noget gik galt. Prøv et andet billede, eller prøv igen.' },
+          error:'Noget gik galt. Prøv et andet billede, eller prøv igen.',
+          pexTitle:'Eller søg efter et billede', pexSearch:'Søg på Pexels …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …' },
     s3: { title:'Sæt sammen og juster',
           sub:'Vælg en stemning, juster gennemsigtighed og placering. Træk portrættet for at flytte det.',
           moodLabel:'Stemning',
@@ -1273,7 +1322,8 @@ const UI = {
           keptTitle:'Use with background', keepDone:'Done! The image is used as is.',
           askTitle:'How would you like to use the image?', askSub:'Let AI remove the background, or use the whole image as its own layer that you place and fade in.',
           removeBg:'Remove background (AI)', keepBg:'Keep the whole image', useWithBg:'Use with background',
-          error:'Something went wrong. Try a different image, or try again.' },
+          error:'Something went wrong. Try a different image, or try again.',
+          pexTitle:'Or search for an image', pexSearch:'Search Pexels …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …' },
     s3: { title:'Compose and adjust',
           sub:'Pick a mood, adjust opacity and position. Drag the portrait to move it.',
           moodLabel:'Mood',
@@ -1769,6 +1819,10 @@ function setLang(l) {
   { const e = document.getElementById('bgc-sub'); if (e && L.s2.askSub) e.textContent = L.s2.askSub; }
   { const e = document.getElementById('bgc-remove-label'); if (e && L.s2.removeBg) e.textContent = L.s2.removeBg; }
   { const e = document.getElementById('bgc-keep-label'); if (e && L.s2.keepBg) e.textContent = L.s2.keepBg; }
+  { const e = document.getElementById('s2-pex-title'); if (e && L.s2.pexTitle) e.textContent = L.s2.pexTitle; }
+  { const e = document.getElementById('s2-pex-btn'); if (e && L.s2.pexBtn) e.textContent = L.s2.pexBtn; }
+  { const e = document.getElementById('s2-pex-hint'); if (e && L.s2.pexHint) e.textContent = L.s2.pexHint; }
+  { const e = document.getElementById('pexelsQuery'); if (e && L.s2.pexSearch) e.placeholder = L.s2.pexSearch; }
   document.getElementById('s2-next').textContent = (l==='en'?'Next →':'Neste →');
 
   // Step 3
@@ -2190,6 +2244,103 @@ async function redoBackgroundRemoval() {
       document.getElementById('portraitUpload').files = e.dataTransfer.files;
       document.getElementById('portraitUpload').dispatchEvent(new Event('change'));
     }
+  });
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PEXELS-SØK (portrett i steg 2)
+// ═══════════════════════════════════════════════════════════════════════════
+// Nøkkelen ligger IKKE i denne fila. Klienten kaller en Netlify-funksjon
+// (/.netlify/functions/pexels) som legger på Pexels-nøkkelen server-side.
+// Sett PEXELS_API_KEY i Netlify → Site settings → Environment variables.
+// Ved trykk på et miniatyrbilde hentes fullbildet som blob → data-URL og mates
+// inn i NØYAKTIG samme portrett-flyt som en opplastet fil (state.portraitOriginal
+// + bakgrunnsvalg-modalen), så AI-bakgrunnsfjerning m.m. fungerer likt.
+const PEXELS_ENDPOINT = '/.netlify/functions/pexels';
+
+function pexL() { return (UI[lang] && UI[lang].s2) || UI.no.s2; }
+
+function setPexelsStatus(msg) {
+  const el = document.getElementById('pexelsStatus');
+  if (!el) return;
+  if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = 'block';
+  el.textContent = msg;
+}
+
+async function runPexelsSearch() {
+  const L = pexL();
+  const input = document.getElementById('pexelsQuery');
+  const grid = document.getElementById('pexelsGrid');
+  const q = (input && input.value || '').trim();
+  if (!q) { if (input) input.focus(); return; }
+
+  grid.innerHTML = '';
+  setPexelsStatus(L.pexSearching || 'Søker …');
+
+  const url = PEXELS_ENDPOINT + '?query=' + encodeURIComponent(q) + '&per_page=12';
+  let data;
+  try {
+    const resp = await fetch(url);
+    if (resp.status === 429) { setPexelsStatus(L.pexBusy); return; }
+    if (!resp.ok) { setPexelsStatus(L.pexError); return; }
+    data = await resp.json();
+  } catch (err) {
+    console.error('Pexels-søk feilet:', err);
+    setPexelsStatus(L.pexError);
+    return;
+  }
+
+  const photos = (data && data.photos) || [];
+  if (!photos.length) { setPexelsStatus(L.pexNone); return; }
+  setPexelsStatus('');
+
+  photos.forEach((p) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pexels-thumb';
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.alt = p.alt || '';
+    img.src = (p.src && (p.src.tiny || p.src.small)) || '';
+    btn.appendChild(img);
+    // Fullbilde: 'large' gir god kvalitet uten å bli enormt.
+    const fullUrl = (p.src && (p.src.large || p.src.medium || p.src.original)) || '';
+    btn.addEventListener('click', () => usePexelsPortrait(fullUrl, p, btn));
+    grid.appendChild(btn);
+  });
+}
+
+async function usePexelsPortrait(fullUrl, photo, btnEl) {
+  const L = pexL();
+  if (!fullUrl) return;
+  if (btnEl) { btnEl.classList.add('loading'); btnEl.disabled = true; }
+  setPexelsStatus(L.pexAdding || 'Henter bilde …');
+  try {
+    const resp = await fetch(fullUrl);
+    if (!resp.ok) throw new Error('bilde-nedlasting feilet: ' + resp.status);
+    const blob = await resp.blob();
+    // Samme skalerings-/dataURL-vei som en opplastet fil.
+    const dataUrl = await fileToDataUrl(blob, 1400);
+    state.portraitOriginal = dataUrl;
+    saveWorkingState();
+    setPexelsStatus('');
+    // Samme valg som ved opplasting: fjern bakgrunn (AI) eller behold hele bildet.
+    openBgChoiceModal();
+  } catch (err) {
+    console.error('Kunne ikke hente Pexels-bilde:', err);
+    setPexelsStatus(L.pexError);
+  } finally {
+    if (btnEl) { btnEl.classList.remove('loading'); btnEl.disabled = false; }
+  }
+}
+
+(function wirePexels() {
+  const btn = document.getElementById('pexelsSearchBtn');
+  const input = document.getElementById('pexelsQuery');
+  if (btn) btn.addEventListener('click', runPexelsSearch);
+  if (input) input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); runPexelsSearch(); }
   });
 })();
 
