@@ -2715,10 +2715,12 @@ function drawMissingMessage(ctx, SIZE) {
     const p = getPos(e);
     const dx = p.x - lastX;
     const dy = p.y - lastY;
-    // Allow dragging the portrait nearly off-canvas: the centre may travel
-    // past the edges so only a sliver needs to remain on screen.
-    state.portraitPos.x = Math.max(-0.4, Math.min(1.4, state.portraitPos.x + dx));
-    state.portraitPos.y = Math.max(-0.4, Math.min(1.4, state.portraitPos.y + dy));
+    // Allow dragging the portrait fully to (and past) the edges. The limit
+    // grows with the portrait size, so a large portrait (up to 300%) can be
+    // pushed all the way out — its half-width is scale/2 in normalized units.
+    const m = 0.4 + state.scale / 2;
+    state.portraitPos.x = Math.max(-m, Math.min(1 + m, state.portraitPos.x + dx));
+    state.portraitPos.y = Math.max(-m, Math.min(1 + m, state.portraitPos.y + dy));
     lastX = p.x; lastY = p.y;
     scheduleRender();
   }
