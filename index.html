@@ -131,13 +131,20 @@
   }
   #bgLibrary::-webkit-scrollbar { width:8px; }
   #bgLibrary::-webkit-scrollbar-thumb { background:#d8cfb8; border-radius:8px; }
-  /* Stor forhåndsvisning av valgt bakgrunn i steg 1 */
+  /* Forhåndsvisning av valgt bakgrunn i steg 1 — kvadratisk utsnitt, dra for å velge */
   .bg-preview {
-    margin-top:1rem; border-radius:14px; overflow:hidden;
+    position:relative; margin:1rem auto 0; width:100%; max-width:300px;
+    aspect-ratio:1; border-radius:14px; overflow:hidden;
     background:#f5f5f3; border:1px solid #e6ddc9;
-    display:flex; align-items:center; justify-content:center;
+    touch-action:none; cursor:grab; user-select:none;
   }
-  .bg-preview img { width:100%; max-height:320px; object-fit:contain; display:block; }
+  .bg-preview.dragging { cursor:grabbing; }
+  .bg-preview canvas { width:100%; height:100%; display:block; }
+  .bg-preview-hint {
+    position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
+    background:rgba(26,26,26,0.6); color:#fff; font-size:12px;
+    padding:3px 10px; border-radius:20px; pointer-events:none; white-space:nowrap;
+  }
   .lib-thumb {
     position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden;
     cursor:pointer; border:3px solid transparent; background:#eee;
@@ -615,9 +622,10 @@
       <div class="sub" id="s1-upload-sub">JPG, PNG, WEBP — tap eller dra hit</div>
     </label>
 
-    <!-- Stor forhåndsvisning av valgt bakgrunn -->
+    <!-- Forhåndsvisning av valgt bakgrunn: viser det kvadratiske utsnittet, dra for å velge -->
     <div id="bgPreview" class="bg-preview hidden">
-      <img id="bgPreviewImg" alt="">
+      <canvas id="bgPreviewCanvas"></canvas>
+      <div class="bg-preview-hint" id="s1-crop-hint">Dra for å velge utsnitt</div>
     </div>
 
     <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
@@ -701,7 +709,7 @@
     <div class="slider-card">
       <div class="slider-row">
         <span class="slider-label" id="s3-scale">Størrelse</span>
-        <input type="range" id="scaleSlider" min="30" max="150" value="80">
+        <input type="range" id="scaleSlider" min="30" max="300" value="80">
         <span class="slider-value" id="scaleVal">80%</span>
       </div>
     </div>
@@ -1026,7 +1034,7 @@ const UI = {
     s1: { title:'Velg eller last opp en bakgrunn',
           sub:'Last opp et bilde av maleriet ditt — eller en tekstur, himmel, eller annet du vil bruke som bakgrunn. Bakgrunner du laster opp lagres slik at du kan bruke dem igjen.',
           uploadMain:'Last opp bakgrunn', uploadSub:'JPG, PNG, WEBP — tap eller dra hit',
-          libTitle:'Mitt bibliotek', libSub:'Tap på en bakgrunn for å velge den.',
+          libTitle:'Mitt bibliotek', libSub:'Tap på en bakgrunn for å velge den.', cropHint:'Dra for å velge utsnitt',
           libEmpty:'Ingen bakgrunner lagret ennå. Last opp en for å starte.', viewDiary:'Se dagbok', readError:'Kunne ikke lese bildefilen. Prøv et annet bilde (JPG eller PNG).' },
     s2: { title:'Last opp et portrett',
           sub:'Bruk et bilde av en person, et dyr, eller et objekt. Bakgrunnen fjernes automatisk.',
@@ -1127,7 +1135,7 @@ const UI = {
     s1: { title:'Välj eller ladda upp en bakgrund',
           sub:'Ladda upp en bild av din målning — eller en textur, himmel eller annat du vill använda som bakgrund. Bakgrunder du laddar upp sparas så att du kan använda dem igen.',
           uploadMain:'Ladda upp bakgrund', uploadSub:'JPG, PNG, WEBP — tryck eller dra hit',
-          libTitle:'Mitt bibliotek', libSub:'Tryck på en bakgrund för att välja den.',
+          libTitle:'Mitt bibliotek', libSub:'Tryck på en bakgrund för att välja den.', cropHint:'Dra för att välja utsnitt',
           libEmpty:'Inga bakgrunder sparade ännu. Ladda upp en för att börja.', viewDiary:'Se dagbok', readError:'Kunde inte läsa bildfilen. Prova en annan bild (JPG eller PNG).' },
     s2: { title:'Ladda upp ett porträtt',
           sub:'Använd en bild av en person, ett djur eller ett föremål. Bakgrunden tas bort automatiskt.',
@@ -1228,7 +1236,7 @@ const UI = {
     s1: { title:'Vælg eller upload en baggrund',
           sub:'Upload et billede af dit maleri — eller en tekstur, himmel eller andet, du vil bruge som baggrund. Baggrunde, du uploader, gemmes, så du kan bruge dem igen.',
           uploadMain:'Upload baggrund', uploadSub:'JPG, PNG, WEBP — tryk eller træk hertil',
-          libTitle:'Mit bibliotek', libSub:'Tryk på en baggrund for at vælge den.',
+          libTitle:'Mit bibliotek', libSub:'Tryk på en baggrund for at vælge den.', cropHint:'Træk for at vælge udsnit',
           libEmpty:'Ingen baggrunde gemt endnu. Upload en for at starte.', viewDiary:'Se dagbog', readError:'Kunne ikke læse billedfilen. Prøv et andet billede (JPG eller PNG).' },
     s2: { title:'Upload et portræt',
           sub:'Brug et billede af en person, et dyr eller en genstand. Baggrunden fjernes automatisk.',
@@ -1329,7 +1337,7 @@ const UI = {
     s1: { title:'Choose or upload a background',
           sub:'Upload a photo of your painting — or a texture, sky, or anything you want as a background. Backgrounds you upload are saved so you can reuse them.',
           uploadMain:'Upload background', uploadSub:'JPG, PNG, WEBP — tap or drag here',
-          libTitle:'My library', libSub:'Tap a background to select it.',
+          libTitle:'My library', libSub:'Tap a background to select it.', cropHint:'Drag to choose the crop',
           libEmpty:'No backgrounds saved yet. Upload one to start.', viewDiary:'View diary', readError:'Could not read the image file. Try a different image (JPG or PNG).' },
     s2: { title:'Upload a portrait',
           sub:'Use a photo of a person, a pet, or an object. The background is removed automatically.',
@@ -1435,6 +1443,7 @@ const state = {
   bgLibrary: [],            // [{id, dataUrl, name, created}]
   selectedBg: null,         // dataUrl string
   selectedBgId: null,
+  bgPan: { x: 0.5, y: 0.5 }, // normalisert utsnitt-posisjon for bakgrunnen (0–1)
   portraitOriginal: null,   // dataUrl of uploaded portrait
   portraitProcessed: null,  // dataUrl with bg removed
   skipPortrait: false,      // user chose "continue without portrait"
@@ -1590,6 +1599,7 @@ function collectWorkingState() {
     currentStep,
     selectedBg: state.selectedBg,
     selectedBgId: state.selectedBgId,
+    bgPan: { ...state.bgPan },
     portraitOriginal: state.portraitOriginal,
     portraitProcessed: state.portraitProcessed,
     skipPortrait: state.skipPortrait,
@@ -1650,6 +1660,7 @@ async function restoreWorkingState() {
   // Repopulate state
   state.selectedBg = saved.selectedBg || null;
   state.selectedBgId = saved.selectedBgId || null;
+  state.bgPan = saved.bgPan || { x: 0.5, y: 0.5 };
   state.portraitOriginal = saved.portraitOriginal || null;
   state.portraitProcessed = saved.portraitProcessed || null;
   state.skipPortrait = !!saved.skipPortrait;
@@ -1740,6 +1751,7 @@ function newComposition() {
   state.portraitOriginal = null;
   state.portraitProcessed = null;
   state.skipPortrait = false;
+  state.bgPan = { x: 0.5, y: 0.5 };
   state.text = '';
   document.getElementById('textInput').value = '';
   document.getElementById('portraitPreview').classList.add('hidden');
@@ -1821,6 +1833,7 @@ function setLang(l) {
   document.getElementById('s1-upload-sub').textContent = L.s1.uploadSub;
   document.getElementById('s1-lib-title').textContent = L.s1.libTitle;
   document.getElementById('s1-lib-sub').textContent = L.s1.libSub;
+  { const e = document.getElementById('s1-crop-hint'); if (e && L.s1.cropHint) e.textContent = L.s1.cropHint; }
   document.getElementById('s1-diary-text').textContent = L.s1.viewDiary;
   document.getElementById('s1-next').textContent = (l==='en'?'Next →':'Neste →');
 
@@ -1975,25 +1988,74 @@ async function renderLibrary() {
   updateBgPreview();
 }
 
-// Viser den valgte bakgrunnen stort i steg 1 (over biblioteket)
-function updateBgPreview() {
+// Forhåndsvisning av valgt bakgrunn i steg 1: tegner det kvadratiske utsnittet
+// (samme drawCover som komposisjonen), og lar deg dra for å velge utsnitt.
+let _bgPreviewImg = null;
+async function updateBgPreview() {
   const wrap = document.getElementById('bgPreview');
-  const img = document.getElementById('bgPreviewImg');
-  if (!wrap || !img) return;
-  if (state.selectedBg) {
-    if (img.getAttribute('src') !== state.selectedBg) img.src = state.selectedBg;
-    wrap.classList.remove('hidden');
-  } else {
-    img.removeAttribute('src');
-    wrap.classList.add('hidden');
-  }
+  const canvas = document.getElementById('bgPreviewCanvas');
+  if (!wrap || !canvas) return;
+  if (!state.selectedBg) { _bgPreviewImg = null; wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  try {
+    const img = await loadImage(state.selectedBg);
+    _bgPreviewImg = img;
+    drawBgPreview(img);
+    // Vis «dra»-hintet bare når bildet faktisk kan beskjæres (ikke kvadratisk).
+    const hint = document.getElementById('s1-crop-hint');
+    if (hint) hint.style.display = (Math.abs(img.width / img.height - 1) > 0.02) ? '' : 'none';
+  } catch (e) { /* non-fatal */ }
 }
+
+function drawBgPreview(img) {
+  const canvas = document.getElementById('bgPreviewCanvas');
+  if (!canvas || !img) return;
+  const S = 600;
+  if (canvas.width !== S) { canvas.width = S; canvas.height = S; }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, S, S);
+  drawCover(ctx, img, 0, 0, S, S);
+}
+
+// Dra i forhåndsvisningen for å flytte utsnittet (oppdaterer state.bgPan).
+(function setupBgPan() {
+  const wrap = document.getElementById('bgPreview');
+  if (!wrap) return;
+  let dragging = false, lastX = 0, lastY = 0;
+  wrap.addEventListener('pointerdown', (e) => {
+    if (!state.selectedBg || !_bgPreviewImg) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    wrap.classList.add('dragging');
+    try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  wrap.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rect = wrap.getBoundingClientRect();
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (!state.bgPan) state.bgPan = { x: 0.5, y: 0.5 };
+    state.bgPan.x = Math.max(0, Math.min(1, state.bgPan.x - dx / rect.width));
+    state.bgPan.y = Math.max(0, Math.min(1, state.bgPan.y - dy / rect.height));
+    drawBgPreview(_bgPreviewImg);
+    scheduleSaveWorkingState();
+  });
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    wrap.classList.remove('dragging');
+    try { wrap.releasePointerCapture(e.pointerId); } catch (_) {}
+  };
+  wrap.addEventListener('pointerup', end);
+  wrap.addEventListener('pointercancel', end);
+})();
 
 function selectBackground(id) {
   const bg = state.bgLibrary.find(b => b.id === id);
   if (!bg) return;
   state.selectedBg = bg.dataUrl;
   state.selectedBgId = id;
+  state.bgPan = { x: 0.5, y: 0.5 };
   document.getElementById('s1-next').disabled = false;
   renderLibrary();
   scheduleSaveWorkingState();
@@ -2589,13 +2651,17 @@ function cssFilterValueFor(f) {
 function drawCover(ctx, img, dx, dy, dw, dh) {
   const ir = img.width / img.height;
   const dr = dw / dh;
+  // Normalisert utsnitt-posisjon (0=venstre/topp, 0.5=senter, 1=høyre/bunn).
+  const pan = (typeof state !== 'undefined' && state.bgPan) || { x: 0.5, y: 0.5 };
+  const px = Math.max(0, Math.min(1, (pan.x != null ? pan.x : 0.5)));
+  const py = Math.max(0, Math.min(1, (pan.y != null ? pan.y : 0.5)));
   let sx, sy, sw, sh;
   if (ir > dr) {
     sh = img.height; sw = sh * dr;
-    sx = (img.width - sw) / 2; sy = 0;
+    sx = (img.width - sw) * px; sy = 0;
   } else {
     sw = img.width; sh = sw / dr;
-    sx = 0; sy = (img.height - sh) / 2;
+    sx = 0; sy = (img.height - sh) * py;
   }
   ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
 }
@@ -3159,6 +3225,7 @@ async function saveAndContinue() {
     portraitPos: { ...state.portraitPos },
     selectedBg: state.selectedBg,
     selectedBgId: state.selectedBgId,
+    bgPan: { ...state.bgPan },
     portraitProcessed: state.portraitProcessed,
     portraitOriginal: state.portraitOriginal,
     skipPortrait: state.skipPortrait,
@@ -3418,6 +3485,7 @@ function editCurrentItem() {
   // Restore state from the saved composition
   state.selectedBg = m.selectedBg;
   state.selectedBgId = m.selectedBgId || null;
+  state.bgPan = m.bgPan || { x: 0.5, y: 0.5 };
   state.portraitProcessed = m.portraitProcessed;
   state.portraitOriginal = m.portraitOriginal || m.portraitProcessed;
   state.skipPortrait = !!m.skipPortrait;
