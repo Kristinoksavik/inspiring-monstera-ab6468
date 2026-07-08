@@ -627,6 +627,9 @@
       <canvas id="bgPreviewCanvas"></canvas>
       <div class="bg-preview-hint" id="s1-crop-hint">Dra for å velge utsnitt</div>
     </div>
+    <div id="bgRotateRow" class="hidden" style="text-align:center; margin-top:0.6rem;">
+      <button class="btn btn-secondary" id="bgRotateBtn" onclick="rotateBackground()" style="font-size:13px;">⟳ <span id="s1-rotate">Roter bakgrunn 90°</span></button>
+    </div>
 
     <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
     <p class="step-sub" id="s1-lib-sub">Tap på en bakgrunn for å velge den.</p>
@@ -1034,7 +1037,7 @@ const UI = {
     s1: { title:'Velg eller last opp en bakgrunn',
           sub:'Last opp et bilde av maleriet ditt — eller en tekstur, himmel, eller annet du vil bruke som bakgrunn. Bakgrunner du laster opp lagres slik at du kan bruke dem igjen.',
           uploadMain:'Last opp bakgrunn', uploadSub:'JPG, PNG, WEBP — tap eller dra hit',
-          libTitle:'Mitt bibliotek', libSub:'Tap på en bakgrunn for å velge den.', cropHint:'Dra for å velge utsnitt',
+          libTitle:'Mitt bibliotek', libSub:'Tap på en bakgrunn for å velge den.', cropHint:'Dra for å velge utsnitt', rotateBg:'Roter bakgrunn 90°',
           libEmpty:'Ingen bakgrunner lagret ennå. Last opp en for å starte.', viewDiary:'Se dagbok', readError:'Kunne ikke lese bildefilen. Prøv et annet bilde (JPG eller PNG).' },
     s2: { title:'Last opp et portrett',
           sub:'Bruk et bilde av en person, et dyr, eller et objekt. Bakgrunnen fjernes automatisk.',
@@ -1135,7 +1138,7 @@ const UI = {
     s1: { title:'Välj eller ladda upp en bakgrund',
           sub:'Ladda upp en bild av din målning — eller en textur, himmel eller annat du vill använda som bakgrund. Bakgrunder du laddar upp sparas så att du kan använda dem igen.',
           uploadMain:'Ladda upp bakgrund', uploadSub:'JPG, PNG, WEBP — tryck eller dra hit',
-          libTitle:'Mitt bibliotek', libSub:'Tryck på en bakgrund för att välja den.', cropHint:'Dra för att välja utsnitt',
+          libTitle:'Mitt bibliotek', libSub:'Tryck på en bakgrund för att välja den.', cropHint:'Dra för att välja utsnitt', rotateBg:'Rotera bakgrund 90°',
           libEmpty:'Inga bakgrunder sparade ännu. Ladda upp en för att börja.', viewDiary:'Se dagbok', readError:'Kunde inte läsa bildfilen. Prova en annan bild (JPG eller PNG).' },
     s2: { title:'Ladda upp ett porträtt',
           sub:'Använd en bild av en person, ett djur eller ett föremål. Bakgrunden tas bort automatiskt.',
@@ -1236,7 +1239,7 @@ const UI = {
     s1: { title:'Vælg eller upload en baggrund',
           sub:'Upload et billede af dit maleri — eller en tekstur, himmel eller andet, du vil bruge som baggrund. Baggrunde, du uploader, gemmes, så du kan bruge dem igen.',
           uploadMain:'Upload baggrund', uploadSub:'JPG, PNG, WEBP — tryk eller træk hertil',
-          libTitle:'Mit bibliotek', libSub:'Tryk på en baggrund for at vælge den.', cropHint:'Træk for at vælge udsnit',
+          libTitle:'Mit bibliotek', libSub:'Tryk på en baggrund for at vælge den.', cropHint:'Træk for at vælge udsnit', rotateBg:'Rotér baggrund 90°',
           libEmpty:'Ingen baggrunde gemt endnu. Upload en for at starte.', viewDiary:'Se dagbog', readError:'Kunne ikke læse billedfilen. Prøv et andet billede (JPG eller PNG).' },
     s2: { title:'Upload et portræt',
           sub:'Brug et billede af en person, et dyr eller en genstand. Baggrunden fjernes automatisk.',
@@ -1337,7 +1340,7 @@ const UI = {
     s1: { title:'Choose or upload a background',
           sub:'Upload a photo of your painting — or a texture, sky, or anything you want as a background. Backgrounds you upload are saved so you can reuse them.',
           uploadMain:'Upload background', uploadSub:'JPG, PNG, WEBP — tap or drag here',
-          libTitle:'My library', libSub:'Tap a background to select it.', cropHint:'Drag to choose the crop',
+          libTitle:'My library', libSub:'Tap a background to select it.', cropHint:'Drag to choose the crop', rotateBg:'Rotate background 90°',
           libEmpty:'No backgrounds saved yet. Upload one to start.', viewDiary:'View diary', readError:'Could not read the image file. Try a different image (JPG or PNG).' },
     s2: { title:'Upload a portrait',
           sub:'Use a photo of a person, a pet, or an object. The background is removed automatically.',
@@ -1444,6 +1447,7 @@ const state = {
   selectedBg: null,         // dataUrl string
   selectedBgId: null,
   bgPan: { x: 0.5, y: 0.5 }, // normalisert utsnitt-posisjon for bakgrunnen (0–1)
+  bgRotation: 0,            // bakgrunnsrotasjon i grader (0/90/180/270)
   portraitOriginal: null,   // dataUrl of uploaded portrait
   portraitProcessed: null,  // dataUrl with bg removed
   skipPortrait: false,      // user chose "continue without portrait"
@@ -1600,6 +1604,7 @@ function collectWorkingState() {
     selectedBg: state.selectedBg,
     selectedBgId: state.selectedBgId,
     bgPan: { ...state.bgPan },
+    bgRotation: state.bgRotation || 0,
     portraitOriginal: state.portraitOriginal,
     portraitProcessed: state.portraitProcessed,
     skipPortrait: state.skipPortrait,
@@ -1661,6 +1666,7 @@ async function restoreWorkingState() {
   state.selectedBg = saved.selectedBg || null;
   state.selectedBgId = saved.selectedBgId || null;
   state.bgPan = saved.bgPan || { x: 0.5, y: 0.5 };
+  state.bgRotation = saved.bgRotation || 0;
   state.portraitOriginal = saved.portraitOriginal || null;
   state.portraitProcessed = saved.portraitProcessed || null;
   state.skipPortrait = !!saved.skipPortrait;
@@ -1752,6 +1758,7 @@ function newComposition() {
   state.portraitProcessed = null;
   state.skipPortrait = false;
   state.bgPan = { x: 0.5, y: 0.5 };
+  state.bgRotation = 0;
   state.text = '';
   document.getElementById('textInput').value = '';
   document.getElementById('portraitPreview').classList.add('hidden');
@@ -1834,6 +1841,7 @@ function setLang(l) {
   document.getElementById('s1-lib-title').textContent = L.s1.libTitle;
   document.getElementById('s1-lib-sub').textContent = L.s1.libSub;
   { const e = document.getElementById('s1-crop-hint'); if (e && L.s1.cropHint) e.textContent = L.s1.cropHint; }
+  { const e = document.getElementById('s1-rotate'); if (e && L.s1.rotateBg) e.textContent = L.s1.rotateBg; }
   document.getElementById('s1-diary-text').textContent = L.s1.viewDiary;
   document.getElementById('s1-next').textContent = (l==='en'?'Next →':'Neste →');
 
@@ -1995,8 +2003,10 @@ async function updateBgPreview() {
   const wrap = document.getElementById('bgPreview');
   const canvas = document.getElementById('bgPreviewCanvas');
   if (!wrap || !canvas) return;
-  if (!state.selectedBg) { _bgPreviewImg = null; wrap.classList.add('hidden'); return; }
+  const rotRow = document.getElementById('bgRotateRow');
+  if (!state.selectedBg) { _bgPreviewImg = null; wrap.classList.add('hidden'); if (rotRow) rotRow.classList.add('hidden'); return; }
   wrap.classList.remove('hidden');
+  if (rotRow) rotRow.classList.remove('hidden');
   try {
     const img = await loadImage(state.selectedBg);
     _bgPreviewImg = img;
@@ -2015,6 +2025,15 @@ function drawBgPreview(img) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, S, S);
   drawCover(ctx, img, 0, 0, S, S);
+}
+
+// Roter bakgrunnen i 90°-steg (0→90→180→270→0). Kun bakgrunnen snus.
+function rotateBackground() {
+  if (!state.selectedBg) return;
+  state.bgRotation = (((state.bgRotation || 0) + 90) % 360);
+  updateBgPreview();
+  if (typeof renderMainCanvas === 'function' && currentStep === 3) renderMainCanvas();
+  scheduleSaveWorkingState();
 }
 
 // Dra i forhåndsvisningen for å flytte utsnittet (oppdaterer state.bgPan).
@@ -2056,6 +2075,7 @@ function selectBackground(id) {
   state.selectedBg = bg.dataUrl;
   state.selectedBgId = id;
   state.bgPan = { x: 0.5, y: 0.5 };
+  state.bgRotation = 0;
   document.getElementById('s1-next').disabled = false;
   renderLibrary();
   scheduleSaveWorkingState();
@@ -2649,12 +2669,18 @@ function cssFilterValueFor(f) {
 }
 
 function drawCover(ctx, img, dx, dy, dw, dh) {
-  const ir = img.width / img.height;
-  const dr = dw / dh;
   // Normalisert utsnitt-posisjon (0=venstre/topp, 0.5=senter, 1=høyre/bunn).
   const pan = (typeof state !== 'undefined' && state.bgPan) || { x: 0.5, y: 0.5 };
   const px = Math.max(0, Math.min(1, (pan.x != null ? pan.x : 0.5)));
   const py = Math.max(0, Math.min(1, (pan.y != null ? pan.y : 0.5)));
+  // Bakgrunnsrotasjon i 90°-steg. Ved 90/270 byttes mål-dimensjonene når
+  // utsnittet beregnes, slik at det roterte bildet fortsatt dekker rammen.
+  let rot = (typeof state !== 'undefined' && state.bgRotation) || 0;
+  rot = ((rot % 360) + 360) % 360;
+  let cw = dw, ch = dh;
+  if (rot === 90 || rot === 270) { cw = dh; ch = dw; }
+  const ir = img.width / img.height;
+  const dr = cw / ch;
   let sx, sy, sw, sh;
   if (ir > dr) {
     sh = img.height; sw = sh * dr;
@@ -2663,7 +2689,15 @@ function drawCover(ctx, img, dx, dy, dw, dh) {
     sw = img.width; sh = sw / dr;
     sx = 0; sy = (img.height - sh) * py;
   }
-  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  if (rot) {
+    ctx.save();
+    ctx.translate(dx + dw / 2, dy + dh / 2);
+    ctx.rotate(rot * Math.PI / 180);
+    ctx.drawImage(img, sx, sy, sw, sh, -cw / 2, -ch / 2, cw, ch);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  }
 }
 
 function drawMissingMessage(ctx, SIZE) {
@@ -3228,6 +3262,7 @@ async function saveAndContinue() {
     selectedBg: state.selectedBg,
     selectedBgId: state.selectedBgId,
     bgPan: { ...state.bgPan },
+    bgRotation: state.bgRotation || 0,
     portraitProcessed: state.portraitProcessed,
     portraitOriginal: state.portraitOriginal,
     skipPortrait: state.skipPortrait,
@@ -3488,6 +3523,7 @@ function editCurrentItem() {
   state.selectedBg = m.selectedBg;
   state.selectedBgId = m.selectedBgId || null;
   state.bgPan = m.bgPan || { x: 0.5, y: 0.5 };
+  state.bgRotation = m.bgRotation || 0;
   state.portraitProcessed = m.portraitProcessed;
   state.portraitOriginal = m.portraitOriginal || m.portraitProcessed;
   state.skipPortrait = !!m.skipPortrait;
