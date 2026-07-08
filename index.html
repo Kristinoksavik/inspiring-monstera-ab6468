@@ -131,6 +131,13 @@
   }
   #bgLibrary::-webkit-scrollbar { width:8px; }
   #bgLibrary::-webkit-scrollbar-thumb { background:#d8cfb8; border-radius:8px; }
+  /* Stor forhåndsvisning av valgt bakgrunn i steg 1 */
+  .bg-preview {
+    margin-top:1rem; border-radius:14px; overflow:hidden;
+    background:#f5f5f3; border:1px solid #e6ddc9;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .bg-preview img { width:100%; max-height:320px; object-fit:contain; display:block; }
   .lib-thumb {
     position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden;
     cursor:pointer; border:3px solid transparent; background:#eee;
@@ -607,6 +614,11 @@
       <div class="main" id="s1-upload-main">Last opp bakgrunn</div>
       <div class="sub" id="s1-upload-sub">JPG, PNG, WEBP — tap eller dra hit</div>
     </label>
+
+    <!-- Stor forhåndsvisning av valgt bakgrunn -->
+    <div id="bgPreview" class="bg-preview hidden">
+      <img id="bgPreviewImg" alt="">
+    </div>
 
     <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
     <p class="step-sub" id="s1-lib-sub">Tap på en bakgrunn for å velge den.</p>
@@ -1943,6 +1955,7 @@ async function renderLibrary() {
   grid.innerHTML = '';
   if (state.bgLibrary.length === 0) {
     grid.innerHTML = '<div class="lib-empty">' + UI[lang].s1.libEmpty + '</div>';
+    updateBgPreview();
     return;
   }
   state.bgLibrary.forEach(bg => {
@@ -1959,6 +1972,21 @@ async function renderLibrary() {
     };
     grid.appendChild(div);
   });
+  updateBgPreview();
+}
+
+// Viser den valgte bakgrunnen stort i steg 1 (over biblioteket)
+function updateBgPreview() {
+  const wrap = document.getElementById('bgPreview');
+  const img = document.getElementById('bgPreviewImg');
+  if (!wrap || !img) return;
+  if (state.selectedBg) {
+    if (img.getAttribute('src') !== state.selectedBg) img.src = state.selectedBg;
+    wrap.classList.remove('hidden');
+  } else {
+    img.removeAttribute('src');
+    wrap.classList.add('hidden');
+  }
 }
 
 function selectBackground(id) {
