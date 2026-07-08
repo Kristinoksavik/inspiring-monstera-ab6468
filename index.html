@@ -140,6 +140,7 @@
   }
   .bg-preview.dragging { cursor:grabbing; }
   .bg-preview canvas { width:100%; height:100%; display:block; }
+  #portraitCanvas.croppable { cursor:grab; touch-action:none; }
   .bg-preview-hint {
     position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
     background:rgba(26,26,26,0.6); color:#fff; font-size:12px;
@@ -665,6 +666,9 @@
       <p class="pexels-hint" id="s2-pex-hint" style="margin:6px 0 0; font-size:12px; color:#888;"></p>
       <div class="pexels-status" id="pexelsStatus" style="display:none;"></div>
       <div class="pexels-grid" id="pexelsGrid"></div>
+      <div id="pexelsClearRow" class="hidden" style="text-align:center; margin-top:8px;">
+        <button class="btn btn-secondary" id="pexelsClearBtn" type="button" onclick="clearPexels()" style="font-size:13px;">✕ <span id="s2-pex-clear">Tøm søk</span></button>
+      </div>
     </div>
 
     <div id="bgRemovalStatus" class="hidden"></div>
@@ -674,6 +678,7 @@
       <div class="canvas-wrap" style="aspect-ratio:1; max-width:280px; margin: 0.5rem auto 0;">
         <canvas id="portraitCanvas"></canvas>
       </div>
+      <div id="s2-crop-hint" class="hidden" style="text-align:center; font-size:12px; color:#888; margin-top:6px;">Dra for å velge utsnitt</div>
       <div style="display:flex; gap:8px; justify-content:center; margin-top:0.75rem; flex-wrap:wrap;">
         <button class="btn btn-secondary" onclick="document.getElementById('portraitUpload').click()">📷 <span id="s2-new">Velg nytt bilde</span></button>
         <button class="btn btn-secondary" id="redoBgRemove" onclick="redoBackgroundRemoval()">↻ <span id="s2-redo">Prøv AI på nytt</span></button>
@@ -1051,7 +1056,7 @@ const UI = {
           askTitle:'Hvordan vil du bruke bildet?', askSub:'Du kan la AI fjerne bakgrunnen, eller bruke hele bildet som et eget lag du plasserer og demper inn.',
           removeBg:'Fjern bakgrunn (AI)', keepBg:'Behold hele bildet', useWithBg:'Bruk med bakgrunn',
           error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.',
-          pexTitle:'Eller søk etter et bilde', pexSearch:'Søk etter bilde …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …' },
+          pexTitle:'Eller søk etter et bilde', pexSearch:'Søk etter bilde …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …', pexClear:'Tøm søk', pCrop:'Dra for å velge utsnitt' },
     s3: { title:'Sett sammen og juster',
           sub:'Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.',
           moodLabel:'Stemning',
@@ -1152,7 +1157,7 @@ const UI = {
           askTitle:'Hur vill du använda bilden?', askSub:'Du kan låta AI ta bort bakgrunden, eller använda hela bilden som ett eget lager du placerar och tonar in.',
           removeBg:'Ta bort bakgrund (AI)', keepBg:'Behåll hela bilden', useWithBg:'Använd med bakgrund',
           error:'Något gick fel. Prova en annan bild eller försök igen.',
-          pexTitle:'Eller sök efter en bild', pexSearch:'Sök efter bild …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …' },
+          pexTitle:'Eller sök efter en bild', pexSearch:'Sök efter bild …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …', pexClear:'Rensa sökning', pCrop:'Dra för att välja utsnitt' },
     s3: { title:'Sätt ihop och justera',
           sub:'Välj en stämning, justera genomskinlighet och placering. Dra porträttet för att flytta det.',
           moodLabel:'Stämning',
@@ -1253,7 +1258,7 @@ const UI = {
           askTitle:'Hvordan vil du bruge billedet?', askSub:'Du kan lade AI fjerne baggrunden, eller bruge hele billedet som et eget lag du placerer og toner ind.',
           removeBg:'Fjern baggrund (AI)', keepBg:'Behold hele billedet', useWithBg:'Brug med baggrund',
           error:'Noget gik galt. Prøv et andet billede, eller prøv igen.',
-          pexTitle:'Eller søg efter et billede', pexSearch:'Søg efter billede …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …' },
+          pexTitle:'Eller søg efter et billede', pexSearch:'Søg efter billede …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …', pexClear:'Ryd søgning', pCrop:'Træk for at vælge udsnit' },
     s3: { title:'Sæt sammen og juster',
           sub:'Vælg en stemning, juster gennemsigtighed og placering. Træk portrættet for at flytte det.',
           moodLabel:'Stemning',
@@ -1354,7 +1359,7 @@ const UI = {
           askTitle:'How would you like to use the image?', askSub:'Let AI remove the background, or use the whole image as its own layer that you place and fade in.',
           removeBg:'Remove background (AI)', keepBg:'Keep the whole image', useWithBg:'Use with background',
           error:'Something went wrong. Try a different image, or try again.',
-          pexTitle:'Or search for an image', pexSearch:'Search for an image …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …' },
+          pexTitle:'Or search for an image', pexSearch:'Search for an image …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …', pexClear:'Clear search', pCrop:'Drag to choose the crop' },
     s3: { title:'Compose and adjust',
           sub:'Pick a mood, adjust opacity and position. Drag the portrait to move it.',
           moodLabel:'Mood',
@@ -1457,6 +1462,8 @@ const state = {
   scale: 0.8,
   bgBlur: 0,
   portraitPos: { x: 0.5, y: 0.55 }, // normalized 0-1
+  portraitPan: { x: 0.5, y: 0.5 },  // utsnitt for «behold hele bildet» (kvadratisk)
+  portraitKept: false,              // true når bildet beholdes helt (beskjæres kvadratisk)
   text: '',
   textFont: 'Georgia, serif',
   textColor: '#ffffff',
@@ -1608,6 +1615,8 @@ function collectWorkingState() {
     portraitOriginal: state.portraitOriginal,
     portraitProcessed: state.portraitProcessed,
     skipPortrait: state.skipPortrait,
+    portraitPan: { ...state.portraitPan },
+    portraitKept: state.portraitKept || false,
     opacity: state.opacity,
     scale: state.scale,
     bgBlur: state.bgBlur,
@@ -1670,6 +1679,8 @@ async function restoreWorkingState() {
   state.portraitOriginal = saved.portraitOriginal || null;
   state.portraitProcessed = saved.portraitProcessed || null;
   state.skipPortrait = !!saved.skipPortrait;
+  state.portraitPan = saved.portraitPan || { x: 0.5, y: 0.5 };
+  state.portraitKept = !!saved.portraitKept;
   state.filter = saved.filter || 'none';
   state.opacity = (saved.opacity != null) ? saved.opacity : 1.0;
   state.scale = (saved.scale != null) ? saved.scale : 0.8;
@@ -1756,6 +1767,8 @@ function newComposition() {
   state.editingId = null;
   state.portraitOriginal = null;
   state.portraitProcessed = null;
+  state.portraitKept = false;
+  state.portraitPan = { x: 0.5, y: 0.5 };
   state.skipPortrait = false;
   state.bgPan = { x: 0.5, y: 0.5 };
   state.bgRotation = 0;
@@ -1811,6 +1824,8 @@ function skipPortrait() {
   state.skipPortrait = true;
   state.portraitOriginal = null;
   state.portraitProcessed = null;
+  state.portraitKept = false;
+  state.portraitPan = { x: 0.5, y: 0.5 };
   _portraitImgCache = { src: null, img: null };
   document.getElementById('portraitPreview').classList.add('hidden');
   clearBgStatus();
@@ -1863,6 +1878,8 @@ function setLang(l) {
   { const e = document.getElementById('s2-pex-title'); if (e && L.s2.pexTitle) e.textContent = L.s2.pexTitle; }
   { const e = document.getElementById('s2-pex-btn'); if (e && L.s2.pexBtn) e.textContent = L.s2.pexBtn; }
   { const e = document.getElementById('s2-pex-hint'); if (e && L.s2.pexHint) e.textContent = L.s2.pexHint; }
+  { const e = document.getElementById('s2-pex-clear'); if (e && L.s2.pexClear) e.textContent = L.s2.pexClear; }
+  { const e = document.getElementById('s2-crop-hint'); if (e && L.s2.pCrop) e.textContent = L.s2.pCrop; }
   { const e = document.getElementById('pexelsQuery'); if (e && L.s2.pexSearch) e.placeholder = L.s2.pexSearch; }
   document.getElementById('s2-next').textContent = (l==='en'?'Next →':'Neste →');
 
@@ -2252,6 +2269,7 @@ async function processPortrait(dataUrl) {
 
     state.portraitProcessed = resultUrl;
     state.skipPortrait = false; // a real portrait now exists
+    state.portraitKept = false; // AI-utklipp beholder eget bildeforhold
     setBgStatus('ok', UI[lang].s2.done);
     document.getElementById('portraitPreview').classList.remove('hidden');
     drawPortraitPreview();
@@ -2270,13 +2288,51 @@ async function processPortrait(dataUrl) {
   state.isProcessingBg = false;
 }
 
+let _portraitCropImg = null;
+
+// Beskjærer bildet til en firkant (cover) med gitt panorering (0–1).
+function drawPortraitCropInto(ctx, img, S, px, py) {
+  px = Math.max(0, Math.min(1, px)); py = Math.max(0, Math.min(1, py));
+  const ir = img.width / img.height;
+  let sx, sy, sw, sh;
+  if (ir > 1) { sh = img.height; sw = sh; sx = (img.width - sw) * px; sy = 0; }
+  else { sw = img.width; sh = sw; sx = 0; sy = (img.height - sh) * py; }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, S, S);
+}
+
+// «Baker» det kvadratiske utsnittet inn i portraitProcessed, slik at ALLE
+// render-stier og eksport tegner det ferdig-beskåret uten videre endringer.
+async function bakePortraitCrop() {
+  if (!state.portraitOriginal) return;
+  const img = await loadImage(state.portraitOriginal);
+  const S = Math.round(Math.min(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = S; c.height = S;
+  drawPortraitCropInto(c.getContext('2d'), img, S, state.portraitPan.x, state.portraitPan.y);
+  state.portraitProcessed = c.toDataURL('image/jpeg', 0.9);
+  _portraitImgCache = { src: null, img: null };
+}
+
 async function drawPortraitPreview() {
   const canvas = document.getElementById('portraitCanvas');
-  const img = await loadImage(state.portraitProcessed);
   const size = 600;
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d');
-  // checkerboard
+  const hint = document.getElementById('s2-crop-hint');
+  if (state.portraitKept && state.portraitOriginal) {
+    // Live utsnitt-editor: kvadratisk cover+pan fra originalen. Dra for å velge.
+    const img = await loadImage(state.portraitOriginal);
+    _portraitCropImg = img;
+    ctx.clearRect(0, 0, size, size);
+    drawPortraitCropInto(ctx, img, size, state.portraitPan.x, state.portraitPan.y);
+    canvas.classList.add('croppable');
+    if (hint) hint.classList.remove('hidden');
+    return;
+  }
+  canvas.classList.remove('croppable');
+  if (hint) hint.classList.add('hidden');
+  const img = await loadImage(state.portraitProcessed);
+  // checkerboard (for gjennomsiktige AI-utklipp)
   ctx.fillStyle = '#fafafa';
   ctx.fillRect(0, 0, size, size);
   for (let y = 0; y < size; y += 16) {
@@ -2287,11 +2343,45 @@ async function drawPortraitPreview() {
       }
     }
   }
-  // fit image
   const r = Math.min(size / img.width, size / img.height);
   const w = img.width * r, h = img.height * r;
   ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
 }
+
+// Dra i portrett-forhåndsvisningen for å velge utsnitt (kun «behold hele bildet»).
+(function setupPortraitCrop() {
+  const canvas = document.getElementById('portraitCanvas');
+  if (!canvas) return;
+  let dragging = false, lastX = 0, lastY = 0;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (!state.portraitKept || !_portraitCropImg) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    const dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    if (!state.portraitPan) state.portraitPan = { x: 0.5, y: 0.5 };
+    state.portraitPan.x = Math.max(0, Math.min(1, state.portraitPan.x - dx / rect.width));
+    state.portraitPan.y = Math.max(0, Math.min(1, state.portraitPan.y - dy / rect.height));
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawPortraitCropInto(ctx, _portraitCropImg, canvas.width, state.portraitPan.x, state.portraitPan.y);
+  });
+  const end = async (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    await bakePortraitCrop();
+    if (currentStep === 3 && typeof renderMainCanvas === 'function') renderMainCanvas();
+    scheduleSaveWorkingState();
+  };
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+})();
 
 document.getElementById('portraitUpload').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -2299,6 +2389,7 @@ document.getElementById('portraitUpload').addEventListener('change', async (e) =
   try {
     const dataUrl = await fileToDataUrl(file, 1400);
     state.portraitOriginal = dataUrl;
+    state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     // Ask the user how to use the image before doing anything heavy.
     openBgChoiceModal();
@@ -2310,9 +2401,11 @@ document.getElementById('portraitUpload').addEventListener('change', async (e) =
 });
 
 // Use the uploaded original as-is (with its background), as a plain layer.
-function useOriginalAsIs() {
+async function useOriginalAsIs() {
   if (!state.portraitOriginal) return;
-  state.portraitProcessed = state.portraitOriginal;
+  state.portraitKept = true;
+  if (!state.portraitPan) state.portraitPan = { x: 0.5, y: 0.5 };
+  await bakePortraitCrop();
   state.skipPortrait = false;
   setBgStatus('ok', UI[lang].s2.keepDone);
   document.getElementById('portraitPreview').classList.remove('hidden');
@@ -2394,6 +2487,7 @@ async function runPexelsSearch() {
   if (!q) { if (input) input.focus(); return; }
 
   grid.innerHTML = '';
+  { const row = document.getElementById('pexelsClearRow'); if (row) row.classList.add('hidden'); }
   setPexelsStatus(L.pexSearching || 'Søker …');
 
   const url = PEXELS_ENDPOINT + '?query=' + encodeURIComponent(q) + '&per_page=12';
@@ -2427,6 +2521,19 @@ async function runPexelsSearch() {
     btn.addEventListener('click', () => usePexelsPortrait(fullUrl, p, btn));
     grid.appendChild(btn);
   });
+  const clearRow = document.getElementById('pexelsClearRow');
+  if (clearRow) clearRow.classList.remove('hidden');
+}
+
+// Tømmer Pexels-resultatene så de ikke blir liggende mellom søk.
+function clearPexels() {
+  const grid = document.getElementById('pexelsGrid');
+  if (grid) grid.innerHTML = '';
+  const q = document.getElementById('pexelsQuery');
+  if (q) q.value = '';
+  setPexelsStatus('');
+  const row = document.getElementById('pexelsClearRow');
+  if (row) row.classList.add('hidden');
 }
 
 async function usePexelsPortrait(fullUrl, photo, btnEl) {
@@ -2441,6 +2548,7 @@ async function usePexelsPortrait(fullUrl, photo, btnEl) {
     // Samme skalerings-/dataURL-vei som en opplastet fil.
     const dataUrl = await fileToDataUrl(blob, 1400);
     state.portraitOriginal = dataUrl;
+    state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     setPexelsStatus('');
     // Samme valg som ved opplasting: fjern bakgrunn (AI) eller behold hele bildet.
@@ -3266,6 +3374,8 @@ async function saveAndContinue() {
     portraitProcessed: state.portraitProcessed,
     portraitOriginal: state.portraitOriginal,
     skipPortrait: state.skipPortrait,
+    portraitPan: { ...state.portraitPan },
+    portraitKept: state.portraitKept || false,
     textFont: state.textFont,
     textColor: state.textColor,
     textSize: state.textSize,
@@ -3527,6 +3637,8 @@ function editCurrentItem() {
   state.portraitProcessed = m.portraitProcessed;
   state.portraitOriginal = m.portraitOriginal || m.portraitProcessed;
   state.skipPortrait = !!m.skipPortrait;
+  state.portraitPan = m.portraitPan || { x: 0.5, y: 0.5 };
+  state.portraitKept = !!m.portraitKept;
   state.filter = m.filter || 'none';
   state.opacity = (m.opacity != null) ? m.opacity : 1.0;
   state.scale = (m.scale != null) ? m.scale : 0.8;
@@ -3605,6 +3717,8 @@ async function offerRemix(item) {
   // Clear portrait so user uploads a new one
   state.portraitOriginal = null;
   state.portraitProcessed = null;
+  state.portraitKept = false;
+  state.portraitPan = { x: 0.5, y: 0.5 };
   state.skipPortrait = false;
   state.editingId = null;
   state.text = '';
