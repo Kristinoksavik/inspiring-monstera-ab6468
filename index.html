@@ -123,6 +123,14 @@
     display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));
     gap:10px; margin-top:1rem;
   }
+  /* Bakgrunns-biblioteket: fast område som scroller internt når det blir mange */
+  #bgLibrary {
+    max-height:360px; overflow-y:auto;
+    padding:6px; border:1px solid #e6ddc9; border-radius:12px;
+    background:#faf9f6; -webkit-overflow-scrolling:touch;
+  }
+  #bgLibrary::-webkit-scrollbar { width:8px; }
+  #bgLibrary::-webkit-scrollbar-thumb { background:#d8cfb8; border-radius:8px; }
   .lib-thumb {
     position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden;
     cursor:pointer; border:3px solid transparent; background:#eee;
@@ -1020,7 +1028,7 @@ const UI = {
           askTitle:'Hvordan vil du bruke bildet?', askSub:'Du kan la AI fjerne bakgrunnen, eller bruke hele bildet som et eget lag du plasserer og demper inn.',
           removeBg:'Fjern bakgrunn (AI)', keepBg:'Behold hele bildet', useWithBg:'Bruk med bakgrunn',
           error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.',
-          pexTitle:'Eller søk etter et bilde', pexSearch:'Søk på Pexels …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …' },
+          pexTitle:'Eller søk etter et bilde', pexSearch:'Søk etter bilde …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …' },
     s3: { title:'Sett sammen og juster',
           sub:'Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.',
           moodLabel:'Stemning',
@@ -1121,7 +1129,7 @@ const UI = {
           askTitle:'Hur vill du använda bilden?', askSub:'Du kan låta AI ta bort bakgrunden, eller använda hela bilden som ett eget lager du placerar och tonar in.',
           removeBg:'Ta bort bakgrund (AI)', keepBg:'Behåll hela bilden', useWithBg:'Använd med bakgrund',
           error:'Något gick fel. Prova en annan bild eller försök igen.',
-          pexTitle:'Eller sök efter en bild', pexSearch:'Sök på Pexels …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …' },
+          pexTitle:'Eller sök efter en bild', pexSearch:'Sök efter bild …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …' },
     s3: { title:'Sätt ihop och justera',
           sub:'Välj en stämning, justera genomskinlighet och placering. Dra porträttet för att flytta det.',
           moodLabel:'Stämning',
@@ -1222,7 +1230,7 @@ const UI = {
           askTitle:'Hvordan vil du bruge billedet?', askSub:'Du kan lade AI fjerne baggrunden, eller bruge hele billedet som et eget lag du placerer og toner ind.',
           removeBg:'Fjern baggrund (AI)', keepBg:'Behold hele billedet', useWithBg:'Brug med baggrund',
           error:'Noget gik galt. Prøv et andet billede, eller prøv igen.',
-          pexTitle:'Eller søg efter et billede', pexSearch:'Søg på Pexels …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …' },
+          pexTitle:'Eller søg efter et billede', pexSearch:'Søg efter billede …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …' },
     s3: { title:'Sæt sammen og juster',
           sub:'Vælg en stemning, juster gennemsigtighed og placering. Træk portrættet for at flytte det.',
           moodLabel:'Stemning',
@@ -1323,7 +1331,7 @@ const UI = {
           askTitle:'How would you like to use the image?', askSub:'Let AI remove the background, or use the whole image as its own layer that you place and fade in.',
           removeBg:'Remove background (AI)', keepBg:'Keep the whole image', useWithBg:'Use with background',
           error:'Something went wrong. Try a different image, or try again.',
-          pexTitle:'Or search for an image', pexSearch:'Search Pexels …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …' },
+          pexTitle:'Or search for an image', pexSearch:'Search for an image …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …' },
     s3: { title:'Compose and adjust',
           sub:'Pick a mood, adjust opacity and position. Drag the portrait to move it.',
           moodLabel:'Mood',
