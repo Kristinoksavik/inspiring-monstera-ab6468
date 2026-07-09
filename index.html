@@ -3909,10 +3909,20 @@ async function shareResult() {
 
 function downloadResult() {
   if (!_resultData) return;
-  const a = document.createElement('a');
-  a.href = _resultData.dataUrl;
-  a.download = _resultData.fname;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  try {
+    const blob = dataURLtoBlob(_resultData.dataUrl);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = _resultData.fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    console.error('Nedlasting feilet:', e);
+    const w = window.open('', '_blank');
+    if (w) { w.document.write('<img src="' + _resultData.dataUrl + '" style="max-width:100%">'); }
+    else { alert(UI[lang].s5.dlError); }
+  }
 }
 
 // Mirror (flip horizontally) a whole image dataUrl — used for transfer/overføring
