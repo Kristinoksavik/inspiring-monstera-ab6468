@@ -121,10 +121,10 @@ input,textarea,select{font-family:inherit; font-size:14px}
   // BYTT dette til ditt eget passord:
   var PANEL_PASSORD = 'fotomaleri2026';
   (function(){
-    if(sessionStorage.getItem('panel-aapen')==='1'){ document.getElementById('lasOverlay').style.display='none'; }
+    if(localStorage.getItem('panel-aapen')==='1'){ document.getElementById('lasOverlay').style.display='none'; }
     function sjekk(){
       if(document.getElementById('lasInput').value===PANEL_PASSORD){
-        sessionStorage.setItem('panel-aapen','1');
+        localStorage.setItem('panel-aapen','1');
         document.getElementById('lasOverlay').style.display='none';
       } else { document.getElementById('lasFeil').style.display='block'; }
     }
