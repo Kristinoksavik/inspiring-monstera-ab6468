@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fotomaleri · Konkurransepanel</title>
+<style>
+:root{
+  --gull:#c4944a; --gull-mork:#a87d38; --blekk:#1a1a1a; --beige:#f5f5f3;
+  --beige-mork:#eceae4; --linje:#ddd9d0; --gronn:#5a7d5a; --rod:#a4553a;
+  --skygge:0 1px 3px rgba(26,26,26,.08), 0 4px 16px rgba(26,26,26,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  background:var(--beige); color:var(--blekk); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-weight:600; letter-spacing:-.01em}
+button{font-family:inherit; cursor:pointer; border:none; background:none}
+input,textarea,select{font-family:inherit; font-size:14px}
+
+/* ---- Topp ---- */
+.topp{
+  position:sticky; top:0; z-index:50;
+  background:rgba(245,245,243,.92); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--linje);
+  padding:14px 22px; display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+}
+.merke{display:flex; align-items:center; gap:11px}
+.merke-ikon{
+  width:34px; height:34px; border-radius:9px;
+  background:linear-gradient(135deg,var(--gull),var(--gull-mork));
+  color:#fff; font-weight:600; font-size:19px;
+  display:grid; place-items:center; box-shadow:var(--skygge);
+}
+.merke h1{font-size:16px; line-height:1.15}
+.merke .under{font-size:11px; color:#8a857b; font-weight:400; letter-spacing:.02em}
+
+.topp .stat{
+  margin-left:auto; display:flex; gap:20px; align-items:center; font-size:13px; color:#6b665d;
+}
+.stat b{color:var(--blekk); font-size:16px; font-weight:600}
+
+.knapp{
+  background:var(--gull); color:#fff; padding:9px 16px; border-radius:9px;
+  font-size:13px; font-weight:600; box-shadow:var(--skygge); transition:.15s;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.knapp:hover{background:var(--gull-mork)}
+.knapp.sekundar{background:#fff; color:var(--blekk); border:1px solid var(--linje); box-shadow:none}
+.knapp.sekundar:hover{background:var(--beige-mork)}
+.knapp:disabled{opacity:.5; cursor:default}
+
+/* ---- Verktøylinje ---- */
+.verktoy{
+  padding:16px 22px; display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+  border-bottom:1px solid var(--linje);
+}
+.verktoy .felt{
+  display:flex; align-items:center; gap:7px; font-size:13px; color:#6b665d;
+}
+.verktoy select, .verktoy input[type=search]{
+  padding:8px 11px; border:1px solid var(--linje); border-radius:8px; background:#fff;
+}
+.verktoy input[type=search]{min-width:200px}
+.chip{
+  padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:500;
+  border:1px solid var(--linje); background:#fff; color:#6b665d;
+}
+.chip.aktiv{background:var(--blekk); color:#fff; border-color:var(--blekk)}
+
+/* ---- Galleri ---- */
+.galleri{
+  padding:22px; display:grid; gap:20px;
+  grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+  max-width:1500px; margin:0 auto;
+}
+.kort{
+  background:#fff; border-radius:14px; overflow:hidden; box-shadow:var(--skygge);
+  display:flex; flex-direction:column; transition:.15s; border:2px solid transparent;
+}
+.kort:hover{transform:translateY(-2px); box-shadow:0 4px 20px rgba(26,26,26,.12)}
+.kort.svart{border-color:var(--gronn)}
+.kort .bilde{
+  aspect-ratio:4/3; background:var(--beige-mork); position:relative; overflow:hidden;
+  display:grid; place-items:center; cursor:zoom-in;
+}
+.kort .bilde img{width:100%; height:100%; object-fit:cover; display:block}
+.kort .bilde .mangler{color:#b5b0a6; font-size:13px}
+.kort .rang{
+  position:absolute; top:10px; left:10px;
+  background:rgba(26,26,26,.82); color:#fff; font-size:12px; font-weight:600;
+  padding:4px 9px; border-radius:20px; backdrop-filter:blur(4px);
+}
+.kort .svart-merke{
+  position:absolute; top:10px; right:10px;
+  background:var(--gronn); color:#fff; font-size:11px; font-weight:600;
+  padding:4px 9px; border-radius:20px;
+}
+.kort .krop{padding:15px 16px 16px; display:flex; flex-direction:column; gap:11px; flex:1}
+.kort .navn{font-size:15px; font-weight:600}
+.kort .epost{font-size:12.5px; color:#8a857b; word-break:break-all; margin-top:-6px}
+.kort .meta{display:flex; flex-wrap:wrap; gap:6px; font-size:11px; color:#8a857b}
+.kort .meta span{background:var(--beige); padding:3px 8px; border-radius:6px}
+.kort .komm{
+  font-size:13px; color:#4a463e; background:var(--beige); border-radius:8px;
+  padding:9px 11px; font-style:italic;
+}
+/* Stjerner */
+.stjerner{display:flex; gap:2px; flex-wrap:wrap}
+.stjerner .s{font-size:20px; color:var(--linje); transition:.1s; line-height:1}
+.stjerner .s:hover, .stjerner .s.pa{color:var(--gull)}
+/* Notat */
+.kort textarea{
+  width:100%; border:1px solid var(--linje); border-radius:8px; padding:8px 10px;
+  resize:vertical; min-height:38px; color:var(--blekk);
+}
+.kort-bunn{display:flex; gap:8px; margin-top:auto; padding-top:4px}
+.kort-bunn .knapp{flex:1; justify-content:center; font-size:12.5px; padding:8px}
+.kort-bunn .skjul-knapp{flex:0 0 auto; padding:8px 11px}
+.analyse-rad{display:flex; gap:8px}
+.analyse-rad .liten{flex:1; justify-content:center; font-size:12px; padding:7px 6px}
+.analyse-boks{
+  background:var(--beige); border:1px solid var(--linje); border-radius:9px;
+  padding:12px 13px; font-size:13px; line-height:1.5; color:#3d392f; white-space:pre-wrap;
+}
+.analyse-boks .aoverskrift{
+  font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--gull-mork); margin-bottom:7px; display:flex; align-items:center; gap:6px;
+}
+.analyse-boks .aknapper{display:flex; gap:8px; margin-top:11px; flex-wrap:wrap}
+.analyse-boks .aknapper button{
+  font-size:11.5px; padding:5px 10px; border-radius:7px; border:1px solid var(--linje);
+  background:#fff; color:var(--blekk); font-weight:500; cursor:pointer;
+}
+.analyse-boks .aknapper button:hover{background:var(--beige-mork)}
+.analyse-laster{display:flex; align-items:center; gap:10px; color:#8a857b; font-size:13px}
+.analyse-laster .prikk{
+  width:14px; height:14px; border:2px solid var(--linje); border-top-color:var(--gull);
+  border-radius:50%; animation:snurr .8s linear infinite;
+}
+
+/* ---- Tom / laster ---- */
+.melding{
+  max-width:520px; margin:70px auto; text-align:center; padding:0 24px; color:#6b665d;
+}
+.melding h2{margin-bottom:10px; color:var(--blekk)}
+.melding p{margin-bottom:8px; font-size:14px}
+.spinner{
+  width:32px; height:32px; border:3px solid var(--linje); border-top-color:var(--gull);
+  border-radius:50%; animation:snurr .8s linear infinite; margin:0 auto 18px;
+}
+@keyframes snurr{to{transform:rotate(360deg)}}
+
+/* ---- Modal (mail + lightbox) ---- */
+.overlegg{
+  position:fixed; inset:0; background:rgba(26,26,26,.6); backdrop-filter:blur(3px);
+  z-index:100; display:none; align-items:center; justify-content:center; padding:24px;
+}
+.overlegg.pa{display:flex}
+.modal{
+  background:#fff; border-radius:16px; max-width:640px; width:100%;
+  max-height:90vh; overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.modal-topp{
+  padding:20px 24px; border-bottom:1px solid var(--linje);
+  display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; background:#fff;
+}
+.modal-topp h2{font-size:18px}
+.modal-lukk{font-size:24px; color:#8a857b; line-height:1; padding:4px}
+.modal-krop{padding:24px}
+.modal-krop label{display:block; font-size:12px; color:#8a857b; font-weight:600; margin:14px 0 6px; text-transform:uppercase; letter-spacing:.04em}
+.modal-krop input, .modal-krop textarea{
+  width:100%; border:1px solid var(--linje); border-radius:9px; padding:11px 13px; color:var(--blekk);
+}
+.modal-krop textarea{min-height:280px; resize:vertical; line-height:1.55; font-size:14px}
+.mal-rad{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+.mal-rad .chip{cursor:pointer}
+.mal-rad .chip:hover{background:var(--beige-mork)}
+.modal-bunn{
+  padding:18px 24px; border-top:1px solid var(--linje); display:flex; gap:10px; justify-content:flex-end;
+  position:sticky; bottom:0; background:#fff;
+}
+/* Lightbox */
+.lightbox-bilde{max-width:90vw; max-height:86vh; border-radius:10px; box-shadow:0 20px 60px rgba(0,0,0,.4)}
+
+/* Innstillinger */
+.instill-rad{margin-bottom:16px}
+.instill-rad label{display:block; font-size:12px; color:#8a857b; font-weight:600; margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em}
+.instill-rad input{width:100%; border:1px solid var(--linje); border-radius:9px; padding:11px 13px}
+.hint{font-size:12.5px; color:#8a857b; margin-top:5px; line-height:1.45}
+.hint code{background:var(--beige-mork); padding:1px 5px; border-radius:4px; font-size:12px}
+
+@media (max-width:640px){
+  .topp .stat{width:100%; margin-left:0; justify-content:space-between}
+  .galleri{grid-template-columns:1fr; padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topp">
+  <div class="merke">
+    <div class="merke-ikon">K</div>
+    <div>
+      <h1>Konkurransepanel</h1>
+      <div class="under">Fotomaleri med Kristins metode</div>
+    </div>
+  </div>
+  <div class="stat">
+    <div><b id="stat-total">0</b> bidrag</div>
+    <div><b id="stat-vurdert">0</b> vurdert</div>
+    <button class="knapp sekundar" onclick="åpneInnstillinger()">⚙︎ Oppsett</button>
+    <button class="knapp" id="hent-knapp" onclick="hentBidrag()">↻ Hent bidrag</button>
+  </div>
+</div>
+
+<div class="verktoy" id="verktoy" style="display:none">
+  <div class="felt">Sorter
+    <select id="sorter" onchange="tegn()">
+      <option value="rang">Karakter (høyest først)</option>
+      <option value="dato-ny">Nyeste først</option>
+      <option value="dato-gml">Eldste først</option>
+      <option value="navn">Navn A–Å</option>
+    </select>
+  </div>
+  <div class="felt">
+    <span class="chip" id="f-alle" onclick="settFilter('alle')">Alle</span>
+    <span class="chip" id="f-uvurdert" onclick="settFilter('uvurdert')">Ikke vurdert</span>
+    <span class="chip" id="f-svart" onclick="settFilter('svart')">Svart på</span>
+    <span class="chip" id="f-usvart" onclick="settFilter('usvart')">Ikke svart</span>
+    <span class="chip" id="f-skjulte" onclick="settFilter('skjulte')">🗑 Skjulte</span>
+  </div>
+  <input type="search" id="sok" placeholder="Søk navn eller e-post…" oninput="tegn()">
+  <button class="knapp sekundar" style="margin-left:auto" onclick="eksporterCsv()">⬇︎ Eksporter CSV</button>
+</div>
+
+<div id="innhold">
+  <div class="melding">
+    <h2>Velkommen 👋</h2>
+    <p>Trykk <b>Oppsett</b> og lim inn adressen til Netlify-funksjonen og adminkoden din. Deretter <b>Hent bidrag</b>.</p>
+    <p style="margin-top:14px"><button class="knapp" onclick="åpneInnstillinger()">Kom i gang</button></p>
+  </div>
+</div>
+
+<!-- Innstillinger -->
+<div class="overlegg" id="innstill-overlegg">
+  <div class="modal">
+    <div class="modal-topp"><h2>Oppsett</h2><button class="modal-lukk" onclick="lukk('innstill-overlegg')">×</button></div>
+    <div class="modal-krop">
+      <div class="instill-rad">
+        <label>Funksjons-adresse</label>
+        <input id="in-url" placeholder="https://dittnavn.netlify.app/.netlify/functions/bidrag">
+        <div class="hint">Nettadressen til Netlify-funksjonen. Vanligvis siden din + <code>/.netlify/functions/bidrag</code></div>
+      </div>
+      <div class="instill-rad">
+        <label>Adminkode</label>
+        <input id="in-kode" type="password" placeholder="Din hemmelige kode">
+        <div class="hint">Samme kode som du satte som <code>ADMIN_KODE</code> i Netlify. Lagres kun i denne nettleseren.</div>
+      </div>
+      <div class="instill-rad">
+        <label>Din avsender-signatur i mailene</label>
+        <input id="in-signatur" placeholder="Kristin" value="Kristin">
+      </div>
+    </div>
+    <div class="modal-bunn">
+      <button class="knapp sekundar" onclick="lukk('innstill-overlegg')">Avbryt</button>
+      <button class="knapp" onclick="lagreInnstillinger()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mail -->
+<div class="overlegg" id="mail-overlegg">
+  <div class="modal">
+    <div class="modal-topp"><h2>Tilbakemelding</h2><button class="modal-lukk" onclick="lukk('mail-overlegg')">×</button></div>
+    <div class="modal-krop">
+      <label>Til</label>
+      <input id="mail-til" readonly>
+      <label>Emne</label>
+      <input id="mail-emne">
+      <label>Sett inn tekstbit</label>
+      <div class="mal-rad" id="mal-rad"></div>
+      <label>Melding</label>
+      <textarea id="mail-tekst"></textarea>
+    </div>
+    <div class="modal-bunn">
+      <button class="knapp sekundar" onclick="kopierTekst()">Kopier tekst</button>
+      <button class="knapp" onclick="åpneMailKlient()">Åpne i Mail ✉︎</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="overlegg" id="lys-overlegg" onclick="lukk('lys-overlegg')">
+  <img class="lightbox-bilde" id="lys-bilde" alt="">
+</div>
+
+<script>
+// ---------- Tilstand ----------
+let BIDRAG = [];            // fra Netlify
+let VURDERING = {};         // id -> {rang, notat, svart, epostSendt}
+let filter = 'alle';
+let aktivMailId = null;
+const KONF = lastKonf();
+
+// ---------- IndexedDB (vurderinger overlever) ----------
+let db;
+function åpneDb(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('fotomaler-konkurranse', 1);
+    r.onupgradeneeded = e=>{
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('vurdering')) d.createObjectStore('vurdering', {keyPath:'id'});
+    };
+    r.onsuccess = e=>{ db=e.target.result; res(); };
+    r.onerror = e=>rej(e.target.error);
+  });
+}
+function lagreVurdering(id){
+  if(!db) return;
+  const v = VURDERING[id] || {};
+  const tx = db.transaction('vurdering','readwrite');
+  tx.objectStore('vurdering').put({id, ...v});
+}
+function lastAlleVurderinger(){
+  return new Promise(res=>{
+    if(!db){res();return;}
+    const tx = db.transaction('vurdering','readonly');
+    const rq = tx.objectStore('vurdering').getAll();
+    rq.onsuccess = ()=>{
+      (rq.result||[]).forEach(v=>{ const {id,...rest}=v; VURDERING[id]=rest; });
+      res();
+    };
+    rq.onerror = ()=>res();
+  });
+}
+
+// ---------- Innstillinger (localStorage) ----------
+function lastKonf(){
+  try{ return JSON.parse(localStorage.getItem('cba-konk-konf')||'{}'); }catch(e){ return {}; }
+}
+function åpneInnstillinger(){
+  document.getElementById('in-url').value = KONF.url||'';
+  document.getElementById('in-kode').value = KONF.kode||'';
+  document.getElementById('in-signatur').value = KONF.signatur||'Kristin';
+  vis('innstill-overlegg');
+}
+function lagreInnstillinger(){
+  KONF.url = document.getElementById('in-url').value.trim();
+  KONF.kode = document.getElementById('in-kode').value.trim();
+  KONF.signatur = document.getElementById('in-signatur').value.trim()||'Kristin';
+  localStorage.setItem('cba-konk-konf', JSON.stringify(KONF));
+  lukk('innstill-overlegg');
+}
+
+// ---------- Hent bidrag ----------
+async function hentBidrag(){
+  if(!KONF.url){ åpneInnstillinger(); return; }
+  const knapp = document.getElementById('hent-knapp');
+  knapp.disabled = true; knapp.textContent = 'Henter…';
+  document.getElementById('innhold').innerHTML =
+    '<div class="melding"><div class="spinner"></div><p>Henter bidrag fra Netlify…</p></div>';
+  try{
+    const res = await fetch(KONF.url, { headers: { 'X-Admin-Kode': KONF.kode||'' } });
+    if(!res.ok){
+      const t = await res.json().catch(()=>({error:'Ukjent feil'}));
+      throw new Error(t.error || ('Serveren svarte '+res.status));
+    }
+    const data = await res.json();
+    BIDRAG = data.bidrag||[];
+    await lastAlleVurderinger();
+    tegn();
+  }catch(err){
+    document.getElementById('innhold').innerHTML =
+      '<div class="melding"><h2>Kunne ikke hente 😕</h2><p>'+escapeHtml(err.message)+
+      '</p><p style="margin-top:12px"><button class="knapp sekundar" onclick="åpneInnstillinger()">Sjekk oppsett</button></p></div>';
+  }finally{
+    knapp.disabled = false; knapp.textContent = '↻ Hent bidrag';
+  }
+}
+
+// ---------- Tegn galleri ----------
+function settFilter(f){ filter=f; tegn(); }
+function tegn(){
+  document.getElementById('verktoy').style.display = BIDRAG.length ? 'flex' : 'none';
+  ['alle','uvurdert','svart','usvart','skjulte'].forEach(f=>{
+    document.getElementById('f-'+f).classList.toggle('aktiv', filter===f);
+  });
+
+  const sok = (document.getElementById('sok')?.value||'').toLowerCase();
+  let liste = BIDRAG.filter(b=>{
+    const v = VURDERING[b.id]||{};
+    if(filter==='skjulte'){ if(!v.skjult) return false; }
+    else if(v.skjult) return false; // skjulte vises ikke i andre filtre
+    if(filter==='uvurdert' && v.rang) return false;
+    if(filter==='svart' && !v.svart) return false;
+    if(filter==='usvart' && v.svart) return false;
+    if(sok && !((b.navn||'').toLowerCase().includes(sok) || (b.epost||'').toLowerCase().includes(sok))) return false;
+    return true;
+  });
+
+  const sort = document.getElementById('sorter')?.value||'rang';
+  liste.sort((a,b)=>{
+    const va=VURDERING[a.id]||{}, vb=VURDERING[b.id]||{};
+    if(sort==='rang') return (vb.rang||0)-(va.rang||0) || new Date(b.mottatt)-new Date(a.mottatt);
+    if(sort==='dato-ny') return new Date(b.mottatt)-new Date(a.mottatt);
+    if(sort==='dato-gml') return new Date(a.mottatt)-new Date(b.mottatt);
+    if(sort==='navn') return (a.navn||'').localeCompare(b.navn||'','no');
+    return 0;
+  });
+
+  // Statistikk (skjulte teller ikke med)
+  const synlige = BIDRAG.filter(b=>!(VURDERING[b.id]||{}).skjult);
+  document.getElementById('stat-total').textContent = synlige.length;
+  document.getElementById('stat-vurdert').textContent = synlige.filter(b=>(VURDERING[b.id]||{}).rang).length;
+
+  const holder = document.getElementById('innhold');
+  if(!BIDRAG.length){
+    holder.innerHTML = '<div class="melding"><h2>Ingen bidrag ennå</h2><p>Når elevene sender inn, dukker de opp her.</p></div>';
+    return;
+  }
+  if(!liste.length){
+    holder.innerHTML = '<div class="melding"><p>Ingen bidrag passer filteret.</p></div>';
+    return;
+  }
+
+  holder.innerHTML = '<div class="galleri">'+liste.map(kortHtml).join('')+'</div>';
+}
+
+function kortHtml(b){
+  const v = VURDERING[b.id]||{};
+  const stjerner = [1,2,3,4,5,6,7,8,9,10].map(n=>
+    `<span class="s ${v.rang>=n?'pa':''}" onclick="settRang('${b.id}',${n})">★</span>`
+  ).join('');
+  const bilde = b.bildeUrl
+    ? `<img src="${escapeHtml(b.bildeUrl)}" alt="" loading="lazy" onerror="this.parentNode.innerHTML='<span class=\\'mangler\\'>Bilde utilgjengelig</span>'">`
+    : '<span class="mangler">Ingen fil</span>';
+  const meta = [
+    b.dato && `<span>📅 ${escapeHtml(b.dato)}</span>`,
+    b.filter && `<span>🎨 ${escapeHtml(b.filter)}</span>`,
+    b.sprak && `<span>🌐 ${escapeHtml(b.sprak)}</span>`,
+  ].filter(Boolean).join('');
+
+  return `<div class="kort ${v.svart?'svart':''}">
+    <div class="bilde" onclick="visStort('${escapeHtml(b.bildeUrl||'')}')">
+      ${v.rang?`<div class="rang">★ ${v.rang}</div>`:''}
+      ${v.svart?'<div class="svart-merke">✓ Svart</div>':''}
+      ${bilde}
+    </div>
+    <div class="krop">
+      <div class="navn">${escapeHtml(b.navn||'Uten navn')}</div>
+      <div class="epost">${escapeHtml(b.epost||'—')}</div>
+      ${meta?`<div class="meta">${meta}</div>`:''}
+      ${b.kommentar?`<div class="komm">"${escapeHtml(b.kommentar)}"</div>`:''}
+      <div class="stjerner">${stjerner}</div>
+      <textarea placeholder="Mitt notat (bare for meg)…" onchange="settNotat('${b.id}',this.value)">${escapeHtml(v.notat||'')}</textarea>
+      <div class="analyse-rad">
+        <button class="knapp sekundar liten" onclick="analyser('${b.id}','vurder')">🔍 Vurder for meg</button>
+        <button class="knapp sekundar liten" onclick="analyser('${b.id}','tilbakemelding')">💬 Foreslå tilbakemelding</button>
+      </div>
+      <div class="analyse-boks" id="analyse-${b.id}" style="display:none"></div>
+      <div class="kort-bunn">
+        <button class="knapp" onclick="åpneMail('${b.id}')">✉︎ Svar</button>
+        <button class="knapp sekundar" onclick="veksleSvart('${b.id}')">${v.svart?'Angre svart':'Merk svart'}</button>
+        <button class="knapp sekundar skjul-knapp" onclick="veksleSkjul('${b.id}')" title="${v.skjult?'Vis igjen':'Skjul (f.eks. testbidrag)'}">${v.skjult?'👁 Vis':'🗑'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ---------- Bildeanalyse (Claude) ----------
+const ANALYSE_CACHE = {}; // "id:type" -> tekst, unngår dobbeltkall
+
+async function analyser(id, type, tvungen){
+  const b = BIDRAG.find(x=>x.id===id);
+  if(!b) return;
+  const boks = document.getElementById('analyse-'+id);
+  boks.style.display = 'block';
+
+  if(!b.bildeUrl){
+    boks.innerHTML = '<div class="aoverskrift">Ingen bilde</div>Dette bidraget har ingen bildefil å analysere.';
+    return;
+  }
+
+  const cacheN = id+':'+type;
+  if(!tvungen && ANALYSE_CACHE[cacheN]){ visAnalyse(id,type,ANALYSE_CACHE[cacheN]); return; }
+
+  boks.innerHTML = '<div class="analyse-laster"><div class="prikk"></div>'+
+    (type==='vurder'?'Ser på bildet…':'Skriver forslag…')+'</div>';
+
+  try{
+    let prompt = type==='vurder' ? PROMPT_VURDER : promptTilbakemelding(b);
+    if(tvungen) prompt += '\n\nGi en NY variant med en annen vinkling og andre formuleringer enn sist.';
+    const svar = await kallAnalyse(b.bildeUrl, prompt);
+    ANALYSE_CACHE[cacheN] = svar;
+    visAnalyse(id, type, svar);
+  }catch(err){
+    boks.innerHTML = '<div class="aoverskrift">Kunne ikke analysere</div>'+
+      escapeHtml(err.message||String(err));
+  }
+}
+
+function visAnalyse(id, type, tekst){
+  const boks = document.getElementById('analyse-'+id);
+  const tittel = type==='vurder'
+    ? '🔍 Kunstfaglig vurdering (kun for deg)'
+    : '💬 Forslag til tilbakemelding';
+  let knapper = `<button onclick="kopierAnalyse('${id}')">Kopier</button>`;
+  if(type==='tilbakemelding'){
+    knapper += `<button onclick="tilMail('${id}')">Sett inn i svar ✉︎</button>`;
+  }
+  knapper += `<button onclick="analyser('${id}','${type}',true)">Ny variant</button>`;
+  boks.innerHTML =
+    `<div class="aoverskrift">${tittel}</div>`+
+    `<div id="atekst-${id}">${escapeHtml(tekst)}</div>`+
+    `<div class="aknapper">${knapper}</div>`;
+}
+
+function kopierAnalyse(id){
+  const t = document.getElementById('atekst-'+id)?.textContent||'';
+  navigator.clipboard.writeText(t);
+  const knapp = event.target; const o=knapp.textContent;
+  knapp.textContent='Kopiert ✓'; setTimeout(()=>knapp.textContent=o,1300);
+}
+function tilMail(id){
+  const t = document.getElementById('atekst-'+id)?.textContent||'';
+  const b = BIDRAG.find(x=>x.id===id);
+  åpneMail(id);
+  // legg forslaget inn i mailteksten, over diplomet
+  const ta = document.getElementById('mail-tekst');
+  const navn = (b.navn||'').split(' ')[0]||'du';
+  ta.value = `Hei ${navn}!\n\n${t}\n\n${MALER['Diplom']}\n${bildeLenkeBlokk(b)}\nVarm hilsen,\n${KONF.signatur||'Kristin'}`;
+}
+
+// Analyse via Netlify-funksjonen (serverside — unngår CORS og skjuler nøkkel)
+async function kallAnalyse(bildeUrl, prompt){
+  const res = await fetch(KONF.url, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'X-Admin-Kode': KONF.kode||'' },
+    body: JSON.stringify({ bilde: bildeUrl, prompt })
+  });
+  if(!res.ok){
+    let m = 'Analyse-tjenesten svarte '+res.status;
+    try{ const e = await res.json(); if(e.error) m = e.error; }catch(_){}
+    throw new Error(m);
+  }
+  const j = await res.json();
+  const tekst = (j.tekst||'').trim();
+  if(!tekst) throw new Error('Fikk tomt svar. Prøv igjen.');
+  return tekst;
+}
+
+const PROMPT_VURDER = `Du hjelper en kunstlærer med å vurdere et "fotomaleri" laget med Kristins metode i en konkurranse. Vurderingen er til lærerens egne øyne — ærlig og konkret.
+
+VIKTIG om metoden (dette er IKKE et foto med filter): Eleven bygger en bearbeidet bakgrunn (murvegg, tekstur, eget maleri eller utsnitt — gjerne flere lag, med eller uten farge) og legger inn et figurativt element, ofte et portrett. Kunsten ligger i å DEMPE det figurative så det glir subtilt inn i bakgrunnen — riktig plassert, riktig størrelse, med nok dybde og kontrast til å være spennende, men dust nok til å være vakkert. Fargebruken må ikke bli så dempet at det blir livløst og kjedelig.
+
+Se etter nettopp dette. Skriv kort — 3–4 setninger totalt, ikke avsnitt per tema. Kommenter: hvor vellykket det figurative er dempet og plassert, dybde/kontrast, fargeholdning, og pek på ETT konkret grep som kunne løftet bildet (f.eks. flytte et element til motsatt hjørne for balanse, dempe eller tilføre streker, justere størrelse eller farge). Vær spesifikk om akkurat dette bildet. Norsk. Ingen punktlister.`;
+
+function promptTilbakemelding(b){
+  const komm = b.kommentar ? `\n\nEleven skrev selv: "${b.kommentar}"` : '';
+  const navn = (b.navn||'').split(' ')[0]||'';
+  return `Du skriver et utkast til en personlig tilbakemelding fra kunstlæreren Kristin til en elev som har sendt inn et "fotomaleri" i en konkurranse. Utkastet skal Kristin finpusse selv, så treff tonen hennes.${komm}
+
+Om metoden (IKKE et foto med filter): Eleven bygger en bearbeidet bakgrunn (murvegg, tekstur, eget maleri, gjerne flere lag) og legger inn et figurativt element, ofte et portrett, som DEMPES så det glir subtilt inn — riktig plassert, riktig størrelse, nok dybde/kontrast til å være spennende, men dust nok til å være vakkert. Fargebruken må ikke bli livløs.
+
+KRISTINS TONE (viktig — hermetter denne):
+- Varm og ENTUSIASTISK. Åpne med ekte begeistring ("Å, så vakkert, [navn]!"), bruk utropstegn og spontane vendinger ("jeg elsker det", "dette er sterkt", "og fargene!"). Ikke høytidelig, ikke tamt.
+- Del opp i korte avsnitt med luft mellom — én tanke per avsnitt, ikke én lang blokk.
+- Konkret om farger og figurer — bruk sanselige fargeord (brent, kald blågrå, oker) og knytt dem til motivet.
+- Ærlig: tør å foreslå ETT konkret grep, selv i en konkurranse — f.eks. flytte et element til motsatt hjørne for balanse, dempe/tilføre streker på det figurative, justere størrelse. Formuler det vennlig ("kunne kanskje...", "prøv å...", "så ville det sittet").
+- Avslutt lekent og heiende (i stil med "knalltøft og lekent — dette er sterkt!" — men varier).
+
+Skriv til eleven${navn?` (fornavn: ${navn})`:''}, på norsk. Hold det KORT — en varm åpning, én ting om farger/figurer, ett konkret grep, en heiende avslutning. Gjerne 3–4 korte avsnitt med luft, men ikke mer. Vær spesifikk om akkurat dette bildet, ikke generisk. Ikke skriv hilsen/signatur til slutt (legges til automatisk). Ingen punktlister.`;
+}
+
+// ---------- Vurdering ----------
+function settRang(id,n){
+  VURDERING[id] = VURDERING[id]||{};
+  VURDERING[id].rang = (VURDERING[id].rang===n)?0:n; // klikk samme = nullstill
+  lagreVurdering(id); tegn();
+}
+function settNotat(id,tekst){
+  VURDERING[id] = VURDERING[id]||{};
+  VURDERING[id].notat = tekst;
+  lagreVurdering(id);
+}
+function veksleSvart(id){
+  VURDERING[id] = VURDERING[id]||{};
+  VURDERING[id].svart = !VURDERING[id].svart;
+  lagreVurdering(id); tegn();
+}
+function veksleSkjul(id){
+  VURDERING[id] = VURDERING[id]||{};
+  VURDERING[id].skjult = !VURDERING[id].skjult;
+  lagreVurdering(id); tegn();
+}
+
+// ---------- Lightbox ----------
+function visStort(url){
+  if(!url) return;
+  document.getElementById('lys-bilde').src = url;
+  vis('lys-overlegg');
+}
+
+// ---------- Mail ----------
+const MALER = {
+  'Varm åpning': 'Så fint å motta fotomaleriet ditt! Takk for at du delte det med meg.',
+  'Om komposisjon': 'Komposisjonen din har en fin balanse — blikket ledes naturlig gjennom bildet.',
+  'Om farger': 'Fargebruken er gjennomtenkt; samspillet mellom de tre primærfargene sammen med hvitt og svart gir dybde.',
+  'Om lys': 'Lyset i bildet skaper en fin stemning og løfter motivet.',
+  'Oppmuntring': 'Du er tydelig i god utvikling — fortsett å male og utforske!',
+  'Diplom': '— — — — — — — — — — — — —\n🏅 BEKREFTELSE PÅ DELTAGELSE\nDitt bidrag er registrert i konkurransen for Fotomaleri med Kristins metode.\n— — — — — — — — — — — — —',
+};
+function åpneMail(id){
+  aktivMailId = id;
+  const b = BIDRAG.find(x=>x.id===id); if(!b) return;
+  document.getElementById('mail-til').value = b.epost||'';
+  document.getElementById('mail-emne').value = 'Takk for bidraget ditt – Fotomaleri med Kristins metode';
+  document.getElementById('mail-tekst').value = byggStandardMail(b);
+  const rad = document.getElementById('mal-rad');
+  rad.innerHTML = Object.keys(MALER).map(k=>`<span class="chip" onclick="settInnMal('${k}')">${k}</span>`).join('');
+  vis('mail-overlegg');
+}
+function bildeLenkeBlokk(b){
+  if(!b.bildeUrl) return '';
+  return `\nHer kan du se maleriet ditt igjen:\n${b.bildeUrl}\n`;
+}
+function byggStandardMail(b){
+  const sig = KONF.signatur||'Kristin';
+  const navn = (b.navn||'').split(' ')[0] || 'du';
+  const v = VURDERING[b.id]||{};
+  let tekst = `Hei ${navn}!\n\n`;
+  tekst += `Så fint å motta fotomaleriet ditt – takk for at du delte det i konkurransen.\n\n`;
+  if(v.rang) tekst += `Her er min tilbakemelding:\n\n`;
+  tekst += `[Skriv din personlige tilbakemelding her – bruk knappene over for ferdige tekstbiter.]\n\n`;
+  tekst += MALER['Diplom'] + `\n`;
+  tekst += bildeLenkeBlokk(b) + `\n`;
+  tekst += `Varm hilsen,\n${sig}`;
+  return tekst;
+}
+function settInnMal(key){
+  const ta = document.getElementById('mail-tekst');
+  const bit = MALER[key];
+  const pos = ta.selectionStart ?? ta.value.length;
+  ta.value = ta.value.slice(0,pos) + bit + '\n' + ta.value.slice(pos);
+  ta.focus();
+}
+function kopierTekst(){
+  navigator.clipboard.writeText(document.getElementById('mail-tekst').value)
+    .then(()=>{ const t=event.target; const o=t.textContent; t.textContent='Kopiert ✓'; setTimeout(()=>t.textContent=o,1400); });
+}
+function åpneMailKlient(){
+  const til = encodeURIComponent(document.getElementById('mail-til').value);
+  const emne = encodeURIComponent(document.getElementById('mail-emne').value);
+  const kropp = encodeURIComponent(document.getElementById('mail-tekst').value);
+  // merk som svart automatisk
+  if(aktivMailId){
+    VURDERING[aktivMailId] = VURDERING[aktivMailId]||{};
+    VURDERING[aktivMailId].svart = true;
+    lagreVurdering(aktivMailId);
+  }
+  window.location.href = `mailto:${til}?subject=${emne}&body=${kropp}`;
+  lukk('mail-overlegg'); tegn();
+}
+
+// ---------- CSV ----------
+function eksporterCsv(){
+  const rader = [['Navn','E-post','Karakter','Svart','Notat','Dato','Filter','Språk','Mottatt','Bilde']];
+  BIDRAG.forEach(b=>{
+    const v = VURDERING[b.id]||{};
+    rader.push([b.navn,b.epost,v.rang||'',v.svart?'ja':'',v.notat||'',b.dato,b.filter,b.sprak,b.mottatt,b.bildeUrl]);
+  });
+  const csv = rader.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'konkurransebidrag.csv';
+  a.click();
+}
+
+// ---------- Hjelpere ----------
+function vis(id){ document.getElementById(id).classList.add('pa'); }
+function lukk(id){ document.getElementById(id).classList.remove('pa'); }
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---------- Start ----------
+(async function(){
+  await åpneDb();
+  await lastAlleVurderinger();
+  if(KONF.url) hentBidrag();
+})();
+</script>
+</body>
+</html>
