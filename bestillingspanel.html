@@ -211,7 +211,7 @@ input,textarea,select{font-family:inherit; font-size:14px}
     </div>
     <div class="modal-bunn">
       <button class="knapp sekundar" onclick="kopierMail()">Kopier</button>
-      <button class="knapp" onclick="apneMailKlient()">Åpne i Mail ✉︎</button>
+      <button class="knapp" id="send-btn" onclick="sendSvar()">Send ✉︎</button>
     </div>
   </div>
 </div>
@@ -251,7 +251,8 @@ var BESTILLINGER_DEMO = [
 
 // ---------- Tilstand ----------
 let ORDRER = [];
-let SAK = {};          // id -> {status, notat, levertUrl, vannmerke, skjult}
+let SAK = {};          // (utgår – sak ligger nå på ordren fra server)
+let erDemo = false;
 let filter = 'alle';
 let aktivMailId = null, aktivLeverId = null, valgtVm = 'uten';
 const KONF = lastKonf();
@@ -281,7 +282,7 @@ function lagreOppsett(){
 }
 
 // ---------- Hent ----------
-function lastDemo(){ ORDRER=BESTILLINGER_DEMO.slice(); tegn(); }
+function lastDemo(){ erDemo=true; ORDRER=BESTILLINGER_DEMO.slice(); tegn(); }
 async function hentOrdrer(){
   if(!KONF.url){ apneOppsett(); return; }
   const k=document.getElementById('hent-knapp'); k.disabled=true; k.textContent='Henter…';
@@ -289,7 +290,7 @@ async function hentOrdrer(){
   try{
     const res=await fetch(KONF.url,{headers:{'X-Admin-Kode':KONF.kode||''}});
     if(!res.ok) throw new Error('Serveren svarte '+res.status);
-    const data=await res.json(); ORDRER=data.ordrer||data.bidrag||[]; await lastAlleSaker(); tegn();
+    const data=await res.json(); ORDRER=data.ordrer||data.bidrag||[]; erDemo=false; tegn();
   }catch(err){
     document.getElementById('innhold').innerHTML='<div class="melding-tom"><h2>Kunne ikke hente 😕</h2><p>'+esc(err.message)+'</p><p style="margin-top:12px"><button class="knapp sekundar" onclick="apneOppsett()">Sjekk oppsett</button></p></div>';
   }finally{ k.disabled=false; k.textContent='↻ Hent ordrer'; }
@@ -298,13 +299,13 @@ async function hentOrdrer(){
 // ---------- Tegn ----------
 const VEINAVN={gratis:'Gratis eksempel', fila:'Fila · 2000', stort:'Stort format · 7000+'};
 function settFilter(f){ filter=f; tegn(); }
-function status(id){ return (SAK[id]||{}).status||'ny'; }
+function status(id){ const o=ORDRER.find(x=>x.id===id); return (o&&o.status)||'ny'; }
 function tegn(){
   document.getElementById('verktoy').style.display=ORDRER.length?'flex':'none';
   document.querySelectorAll('.chip[data-f]').forEach(c=>c.classList.toggle('aktiv',c.dataset.f===filter));
   const sok=(document.getElementById('sok')?.value||'').toLowerCase();
   let liste=ORDRER.filter(o=>{
-    const s=SAK[o.id]||{};
+    const s=o;
     if(filter==='skjulte'){ if(!s.skjult) return false; } else if(s.skjult) return false;
     if(['ny','arbeid','levert'].includes(filter) && status(o.id)!==filter) return false;
     if(sok && !((o.navn||'').toLowerCase().includes(sok)||(o.epost||'').toLowerCase().includes(sok))) return false;
@@ -319,7 +320,7 @@ function tegn(){
     if(sort==='status') return rank[status(a.id)]-rank[status(b.id)];
     return 0;
   });
-  const synlige=ORDRER.filter(o=>!(SAK[o.id]||{}).skjult);
+  const synlige=ORDRER.filter(o=>!o.skjult);
   document.getElementById('stat-total').textContent=synlige.length;
   document.getElementById('stat-nye').textContent=synlige.filter(o=>status(o.id)==='ny').length;
   document.getElementById('stat-levert').textContent=synlige.filter(o=>status(o.id)==='levert').length;
@@ -330,7 +331,7 @@ function tegn(){
 }
 
 function kortHtml(o){
-  const s=SAK[o.id]||{}, st=status(o.id);
+  const s=o, st=status(o.id);
   const bilde = o.bildeUrl
     ? `<img src="${esc(o.bildeUrl)}" alt="" loading="lazy" onclick="visStort('${esc(o.bildeUrl)}')">`
     : (o.onske ? `<div class="onske">✨ Ønsket motiv:<br>«${esc(o.onske)}»</div>` : '<span class="mangler">Ingen fil</span>');
@@ -368,9 +369,20 @@ function kortHtml(o){
 }
 
 // ---------- Handlinger ----------
-function settStatus(id,st){ SAK[id]=SAK[id]||{}; SAK[id].status=st; lagreSak(id); tegn(); }
-function settNotat(id,t){ SAK[id]=SAK[id]||{}; SAK[id].notat=t; lagreSak(id); }
-function veksleSkjul(id){ SAK[id]=SAK[id]||{}; SAK[id].skjult=!SAK[id].skjult; lagreSak(id); tegn(); }
+function settStatus(id,st){ apiSak(id,{status:st}); }
+function settNotat(id,t){ apiSak(id,{notat:t}, true); }
+function veksleSkjul(id){ const o=ORDRER.find(x=>x.id===id); apiSak(id,{skjult:!(o&&o.skjult)}); }
+// Oppdater sak på server + lokalt. skipTegn brukes for notat (unngå tegning under skriving).
+async function apiSak(id, sak, skipTegn){
+  const o=ORDRER.find(x=>x.id===id); if(!o) return;
+  Object.assign(o, sak);
+  if(!skipTegn) tegn();
+  if(erDemo || !KONF.url) return;
+  try{
+    await fetch(KONF.url,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Kode':KONF.kode||''},
+      body:JSON.stringify({action:'oppdater', id, sak})});
+  }catch(e){ /* behold lokal endring */ }
+}
 function visStort(u){ if(!u)return; document.getElementById('lys-bilde').src=u; vis('lys-overlegg'); }
 
 function apneApp(id){
@@ -388,13 +400,13 @@ function lastNed(id){
 }
 
 // ---------- Lever fil ----------
-function apneLever(id){ aktivLeverId=id; const s=SAK[id]||{}; document.getElementById('lever-url').value=s.levertUrl||''; settVm(s.vannmerke||'uten'); vis('lever-overlegg'); }
+function apneLever(id){ aktivLeverId=id; const s=ORDRER.find(x=>x.id===id)||{}; document.getElementById('lever-url').value=s.levertUrl||''; settVm(s.vannmerke||'uten'); vis('lever-overlegg'); }
 function settVm(v){ valgtVm=v; document.querySelectorAll('#vm-rad .vm').forEach(x=>x.classList.toggle('pa',x.dataset.vm===v)); }
 function bekreftLevering(){
   const id=aktivLeverId, url=document.getElementById('lever-url').value.trim();
   if(!url){ alert('Lim inn fil-lenken først.'); return; }
-  SAK[id]=SAK[id]||{}; SAK[id].levertUrl=url; SAK[id].vannmerke=valgtVm; SAK[id].status='levert'; lagreSak(id);
-  lukk('lever-overlegg'); tegn(); apneMail(id, true);
+  apiSak(id,{levertUrl:url, vannmerke:valgtVm, status:'levert'});
+  lukk('lever-overlegg'); apneMail(id, true);
 }
 
 // ---------- Mail ----------
@@ -405,7 +417,7 @@ const MALER={
   'Neste steg':'Vil du ha den på veggen i stort format, eller lage flere selv med appen? Bare svar på denne, så hjelper jeg deg videre.',
 };
 function apneMail(id, medLevering){
-  aktivMailId=id; const o=ORDRER.find(x=>x.id===id); if(!o) return; const s=SAK[id]||{};
+  aktivMailId=id; const o=ORDRER.find(x=>x.id===id); if(!o) return; const s=ORDRER.find(x=>x.id===id)||{};
   document.getElementById('mail-til').value=o.epost||'';
   document.getElementById('mail-emne').value=medLevering?'Maleriet ditt er ferdig 🎨':'Om bestillingen din – Fotomaleri';
   document.getElementById('mail-tekst').value=byggMail(o,s,medLevering);
@@ -427,24 +439,33 @@ function settInnMal(k){ const ta=document.getElementById('mail-tekst'); const p=
   ta.value=ta.value.slice(0,p)+MALER[k]+'\n'+ta.value.slice(p); ta.focus(); }
 function kopierMail(){ navigator.clipboard.writeText(document.getElementById('mail-tekst').value)
   .then(()=>{const t=event.target,o=t.textContent; t.textContent='Kopiert ✓'; setTimeout(()=>t.textContent=o,1300);}); }
-function apneMailKlient(){
-  const raaEmne=document.getElementById('mail-emne').value;
-  const raaTekst=document.getElementById('mail-tekst').value;
-  if(aktivMailId){                                   // lagre svaret i panelet
-    SAK[aktivMailId]=SAK[aktivMailId]||{};
-    SAK[aktivMailId].svarlogg=SAK[aktivMailId].svarlogg||[];
-    SAK[aktivMailId].svarlogg.push({tid:new Date().toLocaleString('no-NO'), emne:raaEmne, tekst:raaTekst});
-    lagreSak(aktivMailId);
+async function sendSvar(){
+  if(!aktivMailId) return;
+  const til=document.getElementById('mail-til').value;
+  const emne=document.getElementById('mail-emne').value;
+  const tekst=document.getElementById('mail-tekst').value;
+  const btn=document.getElementById('send-btn');
+  if(erDemo){
+    const o=ORDRER.find(x=>x.id===aktivMailId);
+    if(o){ o.svarlogg=o.svarlogg||[]; o.svarlogg.push({tid:new Date().toISOString(), emne, tekst}); }
+    lukk('mail-overlegg'); tegn(); alert('Demo: svaret er logget lokalt (ingenting sendt).'); return;
   }
-  const til=encodeURIComponent(document.getElementById('mail-til').value);
-  window.location.href=`mailto:${til}?subject=${encodeURIComponent(raaEmne)}&body=${encodeURIComponent(raaTekst)}`;
-  lukk('mail-overlegg'); tegn();
+  if(btn){ btn.disabled=true; btn.textContent='Sender…'; }
+  try{
+    const res=await fetch(KONF.url,{method:'POST',headers:{'Content-Type':'application/json','X-Admin-Kode':KONF.kode||''},
+      body:JSON.stringify({action:'send', id:aktivMailId, til, emne, tekst})});
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok||data.error) throw new Error(data.error||('Serveren svarte '+res.status));
+    if(data.ordre){ const i=ORDRER.findIndex(x=>x.id===aktivMailId); if(i>=0) ORDRER[i]=data.ordre; }
+    lukk('mail-overlegg'); tegn(); alert('Sendt ✓');
+  }catch(e){ alert('Kunne ikke sende: '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Send ✉︎'; } }
 }
 
 // ---------- CSV ----------
 function eksporterCsv(){
   const rad=[['Navn','E-post','Telefon','Kategori','Motiv','Stemning','Forbilde','Tekst','Signatur','Melding','Vei','Status','Levert-lenke','Vannmerke','Mottatt']];
-  ORDRER.forEach(o=>{const s=SAK[o.id]||{};
+  ORDRER.forEach(o=>{const s=o;
     rad.push([o.navn,o.epost,o.telefon,o.kategori,o.motiv,o.stemning,o.forbilde,o.tekst,o.signatur,o.melding,o.vei,status(o.id),s.levertUrl||'',s.vannmerke||'',o.mottatt]);});
   const csv=rad.map(r=>r.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const b=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}); const a=document.createElement('a');
