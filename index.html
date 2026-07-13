@@ -591,7 +591,7 @@
       <div class="cba-tour-avatar">🎨</div>
       <div class="cba-tour-content">
         <div class="cba-tour-title" id="wc-title">VELKOMMEN</div>
-        <p class="cba-tour-text" id="wc-text">Velkommen til Fotomaleri! I denne appen kan du eksperimentere med komposisjoner før du tar fram lerretet. Vil du ha en kort omvisning?</p>
+        <p class="cba-tour-text" id="wc-text">Dette er en helt unik app som lar deg lage vakre fotomaleri - med Kristins unike metode. Lag vakre maleri - fullt digitalt - eller klart for å overføre fysisk til lerret. Vil du ha en kort omvisning?</p>
         <div class="cba-tour-actions">
           <button class="cba-tour-play" onclick="startTour()" id="wc-play">▶ <span id="wc-play-text">Ta omvisningen</span></button>
           <button class="cba-tour-skip" onclick="dismissWelcome(false)" id="wc-skip">Hopp over</button>
@@ -1110,7 +1110,7 @@ const UI = {
     },
     welcome: {
       title:'VELKOMMEN',
-      text:'Dette er en helt unik app som lar deg lage utkast til fotomalerier — før du tar fram lerretet. Perfekt for Instagram, kundebestillinger, julekort, invitasjoner og mye mer. Vil du ha en kort omvisning?',
+      text:'Dette er en helt unik app som lar deg lage vakre fotomaleri - med Kristins unike metode. Lag vakre maleri - fullt digitalt - eller klart for å overføre fysisk til lerret. Vil du ha en kort omvisning?',
       play:'Ta omvisningen', btn:'Omvisning',
       skip:'Hopp over',
       never:'Ikke vis igjen'
@@ -1211,7 +1211,7 @@ const UI = {
     },
     welcome: {
       title:'VÄLKOMMEN',
-      text:'Detta är en helt unik app som låter dig skapa utkast till fotomålningar — innan du tar fram duken. Perfekt för Instagram, kundbeställningar, julkort, inbjudningar och mycket mer. Vill du ha en kort visning?',
+      text:'Detta är en helt unik app som låter dig skapa vackra fotomålningar - med Kristins unika metod. Skapa vackra målningar - helt digitalt - eller redo att överföras fysiskt till duk. Vill du ha en kort visning?',
       play:'Ta visningen', btn:'Visning',
       skip:'Hoppa över',
       never:'Visa inte igen'
@@ -1312,7 +1312,7 @@ const UI = {
     },
     welcome: {
       title:'VELKOMMEN',
-      text:'Dette er en helt unik app, der lader dig lave udkast til fotomalerier — før du tager lærredet frem. Perfekt til Instagram, kundebestillinger, julekort, invitationer og meget mere. Vil du have en kort rundvisning?',
+      text:'Dette er en helt unik app, der lader dig lave smukke fotomalerier - med Kristins unikke metode. Lav smukke malerier - helt digitalt - eller klar til at overføre fysisk til lærred. Vil du have en kort rundvisning?',
       play:'Tag rundvisningen', btn:'Rundvisning',
       skip:'Spring over',
       never:'Vis ikke igen'
@@ -1413,7 +1413,7 @@ const UI = {
     },
     welcome: {
       title:'WELCOME',
-      text:'This is a unique app that lets you create drafts for photo paintings — before you reach for the canvas. Perfect for Instagram, customer commissions, Christmas cards, invitations and much more. Would you like a short tour?',
+      text:'This is a truly unique app that lets you create beautiful photo paintings - using Kristin\'s unique method. Create beautiful paintings - fully digital - or ready to transfer physically onto canvas. Would you like a short tour?',
       play:'Take the tour', btn:'Tour',
       skip:'Skip',
       never:'Don\'t show again'
@@ -3587,7 +3587,13 @@ function downloadImage(item) {
 // ═══════════════════════════════════════════════════════════════════════════
 let _modalCurrentId = null;
 
+function closeAllModals() {
+  // Bug-fiks: bare ett vindu om gangen, ellers stables bilder oppa hverandre (dobbelt-bilde pa iPhone)
+  document.querySelectorAll('.modal-bg').forEach(function(m){ m.classList.add('hidden'); });
+}
+
 function openViewModal(id) {
+  closeAllModals();
   const item = state.diary.find(d => d.id === id);
   if (!item) return;
   _modalCurrentId = id;
@@ -3741,6 +3747,7 @@ function downloadCurrentItem() {
 }
 
 function openDownloadModal() {
+  closeAllModals();
   const L = UI[lang].s5;
   document.getElementById('dm-title').textContent = L.dlTitle;
   document.getElementById('dm-intro').textContent = L.dlIntro;
@@ -3869,6 +3876,7 @@ function dataURLtoBlob(dataUrl) {
 }
 
 function showResultModal(dataUrl, fname) {
+  closeAllModals();
   _resultData = { dataUrl, fname };
   const L = UI[lang].s5;
   document.getElementById('rm-title').textContent = L.rmTitle || 'Bildet ditt er klart';
@@ -4146,6 +4154,7 @@ async function deleteCurrentItem() {
 }
 
 function openSubmitModal() {
+  closeAllModals();
   if (!_modalCurrentId) return;
   const item = state.diary.find(d => d.id === _modalCurrentId);
   if (!item) return;
