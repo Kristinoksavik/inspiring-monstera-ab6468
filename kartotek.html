@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Malerikartotek — Kristins univers</title>
+<style>
+  :root{--gull:#c4944a;--gull-mork:#a67a34;--ink:#1a1a1a;--beige:#f5f5f3;--beige-mork:#e8e6e0;--hvit:#fff;--skygge:rgba(26,26,26,.12)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Georgia',serif;color:var(--ink);background:var(--beige);line-height:1.5}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-weight:normal;letter-spacing:.3px}
+  a{color:inherit}
+
+  .cba-topp{background:#fff;border-bottom:1px solid var(--beige-mork);display:flex;align-items:center;justify-content:center;gap:14px;padding:12px 20px}
+  .cba-topp img{height:40px;width:auto;border-radius:5px;display:block}
+  .cba-topp .navn b{display:block;font-family:Georgia,serif;font-style:italic;font-weight:normal;font-size:22px;color:var(--gull)}
+  .cba-topp .navn small{display:block;font-size:11px;color:#8a857b}
+
+  header.topp{background:var(--ink);color:var(--beige);text-align:center;padding:40px 0 34px}
+  header.topp .kick{color:var(--gull);letter-spacing:3px;text-transform:uppercase;font-size:12px;margin-bottom:12px}
+  header.topp h1{font-size:clamp(28px,5vw,40px);margin-bottom:10px}
+  header.topp p{opacity:.82;max-width:560px;margin:0 auto;font-size:16px}
+
+  .verktoylinje{position:sticky;top:0;z-index:20;background:var(--beige);border-bottom:1px solid var(--beige-mork);padding:16px 0}
+  .verktoylinje .rad{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  #sok{flex:1;min-width:220px;padding:12px 16px;font-family:inherit;font-size:16px;border:1px solid var(--beige-mork);border-radius:6px;background:#fff}
+  .teller{font-size:14px;opacity:.7;white-space:nowrap}
+  .filterknapp{font-family:inherit;font-size:13px;padding:9px 14px;border:1px solid var(--beige-mork);background:#fff;border-radius:20px;cursor:pointer;transition:.15s}
+  .filterknapp.aktiv{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  .rutenett{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:20px;padding:28px 0 60px}
+  .kort{background:#fff;border:1px solid var(--beige-mork);border-radius:12px;overflow:hidden;box-shadow:0 5px 16px var(--skygge);display:flex;flex-direction:column;transition:.15s}
+  .kort:hover{transform:translateY(-3px);box-shadow:0 10px 26px var(--skygge)}
+  .kort .bilde{aspect-ratio:4/3;background:var(--beige-mork);position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .kort .bilde img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+  .lightbox{display:none;position:fixed;inset:0;z-index:100;background:rgba(26,26,26,.92);align-items:center;justify-content:center;flex-direction:column;padding:30px;cursor:zoom-out}
+  .lightbox.apen{display:flex}
+  .lightbox img{max-width:95%;max-height:86%;object-fit:contain;border-radius:6px;box-shadow:0 12px 44px rgba(0,0,0,.55)}
+  .lb-lukk{position:absolute;top:16px;right:26px;color:#fff;font-size:42px;line-height:1;cursor:pointer;opacity:.85}
+  .lb-lukk:hover{opacity:1}
+  .lb-tittel{color:var(--beige);margin-top:16px;font-size:18px;letter-spacing:.5px;font-style:italic}
+  .kort .mangler{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    background:linear-gradient(135deg,#efece6,#e2ddd3);color:#a89f8f;text-align:center;padding:14px}
+  .kort .mangler .ikon{font-size:26px;opacity:.6}
+  .kort .mangler small{font-size:11px;letter-spacing:.5px;text-transform:uppercase}
+  .kort .nr{position:absolute;top:8px;left:8px;background:rgba(26,26,26,.78);color:var(--gull);font-size:12px;padding:3px 9px;border-radius:12px;letter-spacing:.5px}
+  .kort .krop{padding:14px 15px 6px;flex:1}
+  .kort h3{font-size:17px;line-height:1.2}
+  .kort .lenker{display:flex;flex-wrap:wrap;gap:7px;padding:10px 15px 15px}
+  .kort .lenker a{font-size:12.5px;text-decoration:none;padding:6px 11px;border-radius:16px;border:1px solid var(--beige-mork);background:var(--beige);transition:.15s;white-space:nowrap}
+  .kort .lenker a:hover{border-color:var(--gull);background:#fff}
+  .kort .lenker a.mangl{opacity:.4;cursor:default;pointer-events:none}
+
+  .innkjop-knapp{background:#fff;color:var(--gull-mork);border:1.5px solid var(--gull);text-decoration:none;font-weight:bold}
+  .innkjop-knapp:hover{background:var(--gull);color:#fff}
+  .filterpanel{display:none}
+  .filterpanel.apen{display:block}
+  #filterknapp-toggle.apen{background:var(--ink);color:#fff;border-color:var(--ink)}
+  #filterknapp-toggle.harfilter{border-color:var(--gull);color:var(--gull-mork)}
+  #filterknapp-toggle.harfilter.apen{color:#fff}
+  #filter-ant{font-weight:bold}
+  .taggfilter{border-top:1px solid var(--beige-mork);margin-top:14px;padding-top:12px}
+  .taggfilter .tf-tittel{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:#8a857b;margin-bottom:8px}
+  .taggfilter .tf-rad{display:flex;flex-wrap:wrap;gap:7px}
+  .tf-tagg{font-family:inherit;font-size:12.5px;padding:6px 12px;border:1px solid var(--beige-mork);background:#fff;border-radius:16px;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .tf-tagg:hover{border-color:var(--gull)}
+  .tf-tagg.aktiv{background:var(--gull);color:#fff;border-color:var(--gull)}
+  .tf-tagg .ant{font-size:11px;opacity:.6}
+  .tf-tagg.aktiv .ant{opacity:.85}
+  .kt-rad .tf-tagg.aktiv{background:var(--ink);border-color:var(--ink)}
+  .kt-rad .tf-tagg:hover{border-color:var(--ink)}
+  .niv-rad .tf-tagg.aktiv{background:var(--gull-mork);border-color:var(--gull-mork)}
+  .niv-rad .tf-tagg:hover{border-color:var(--gull-mork)}
+  .tf-nullstill{font-family:inherit;font-size:12.5px;padding:6px 12px;border:1px solid transparent;background:none;color:var(--gull-mork);cursor:pointer;text-decoration:underline}
+  .kort .tagger{display:flex;flex-wrap:wrap;gap:5px;padding:2px 15px 0}
+  .kort .tagger .t{font-size:10.5px;letter-spacing:.3px;padding:2px 8px;border-radius:10px;background:var(--beige-mork);color:#6b6559;cursor:pointer;transition:.15s}
+  .kort .tagger .t:hover{background:var(--gull);color:#fff}
+  .ingen{text-align:center;padding:60px 0;opacity:.6}
+  footer{text-align:center;padding:30px 0;font-size:13px;opacity:.55}
+  .redig{max-width:1100px;margin:0 auto;padding:0 20px 30px}
+  .redig .boks{background:#fff;border:1px dashed var(--gull);border-radius:10px;padding:16px 18px;font-size:13.5px;opacity:.9}
+  .redig b{color:var(--gull-mork)}
+</style>
+</head>
+<body>
+
+<div class="cba-topp">
+  <img src="cba-logo.jpg" alt="Creative Business Academy">
+  <div class="navn"><b id="t-merke"></b><small id="t-merke-under"></small></div>
+</div>
+
+<header class="topp">
+  <div class="wrap">
+    <div class="kick" id="t-kick"></div>
+    <h1 id="t-tittel"></h1>
+    <p id="t-ingress"></p>
+  </div>
+</header>
+
+<div class="verktoylinje">
+  <div class="wrap">
+    <div class="rad">
+      <input id="sok" type="search" placeholder="Søk etter maleri eller nummer …" oninput="tegn()">
+      <button class="filterknapp aktiv" data-f="alle" onclick="settFilter(this)">Alle</button>
+      <button class="filterknapp" data-f="nr" onclick="settFilter(this)">Kun nummererte</button>
+      <button class="filterknapp" data-f="video" onclick="settFilter(this)">Har video</button>
+      <button class="filterknapp" id="filterknapp-toggle" onclick="toggleFilterpanel()">☰ Filtre <span id="filter-ant"></span></button>
+      <a class="filterknapp innkjop-knapp" id="innkjop-knapp" href="https://gentle-lily-acd730.netlify.app" target="_blank" rel="noopener">🛒 Innkjøpshjelpen</a>
+      <span class="teller" id="teller"></span>
+    </div>
+    <div class="filterpanel" id="filterpanel">
+    <div class="taggfilter" id="kurstypefilter">
+      <div class="tf-tittel">Type kurs</div>
+      <div class="tf-rad kt-rad" id="kt-rad"></div>
+    </div>
+    <div class="taggfilter" id="nivafilter">
+      <div class="tf-tittel">Nivå</div>
+      <div class="tf-rad niv-rad" id="niv-rad"></div>
+    </div>
+    <div class="taggfilter" id="taggfilter">
+      <div class="tf-tittel">Teknikk / materiale</div>
+      <div class="tf-rad" id="tf-rad"></div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="rutenett" id="rutenett"></div>
+  <div class="ingen" id="ingen" style="display:none">Ingen malerier passer søket.</div>
+</main>
+
+<div class="redig">
+  <div class="boks">💡 <b>Rediger i side-editoren:</b> hvert maleri er et kort du kan endre. Lim inn <b>bilde</b>-lenke (fra Simplero), <b>video</b>-lenke og <b>kurs</b>-lenke etter hvert — produktliste-lenkene er allerede koblet på.</div>
+</div>
+
+<footer class="wrap" id="t-footer"></footer>
+
+<div class="lightbox" id="lightbox" onclick="lukkBilde()">
+  <span class="lb-lukk" aria-label="Lukk">×</span>
+  <img id="lb-img" src="" alt="">
+  <div class="lb-tittel" id="lb-tittel"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  MALERIKARTOTEK — rediger fritt i side-editoren.
+//  Hvert maleri: nr, tittel, bilde (Simplero-url), video (url),
+//  produktliste (url), kurs (url). Tomt felt = knapp vises grået ut.
+// ══════════════════════════════════════════════════════════════
+var TEKST = {
+  merke: 'Kristins univers',
+  merkeUnder: 'Creative Business Academy',
+  kick: 'Internt kartotek',
+  tittel: 'Malerikartotek',
+  ingress: 'Alle maleriene samlet ett sted — med produktliste, video og tilhørende kurs. Klikk deg inn på hvert maleri.',
+  footer: '© Kristin Oksavik · Creative Business Academy',
+  malerier: [
+  { nr:'1', tittel:'The Bridge', bilde:'bilder/001-the-bridge.jpg', video:'https://malestudio.kristinoksavik.com/courses/37531-maleri-1-the-bridge-landskap-med', produktliste:'produktlister-lokal/Productlist-Bridge-ENG.pdf', tags:['Powertex','A-Å','Nybegynner','Stoneart','krakelering'], kurs:'' },
+  { nr:'2', tittel:'Blue', bilde:'bilder/002-blue.jpg', video:'https://malestudio.kristinoksavik.com/courses/37537-maleri-2-blaatt-kaos-lite-maleri', produktliste:'', tags:['Powertex','A-Å','Nybegynner','avismakulator','gesso'], kurs:'' },
+  { nr:'3', tittel:'Magic', bilde:'bilder/003-magic.jpg', video:'https://malestudio.kristinoksavik.com/courses/37538-maleri-3-magic-stort-stoneartmaleri-med', produktliste:'', tags:['Powertex','A-Å','Mixed Media (pålimte detaljer)','Stoneart'], kurs:'' },
+  { nr:'4', tittel:'Purple Power', bilde:'bilder/004-purple-power.jpg', video:'https://malestudio.kristinoksavik.com/courses/37543-maleri-4-purple-power-akrylmaleri-med', produktliste:'', tags:['Powertex','A-Å','kaldvoks'], kurs:'' },
+  { nr:'5', tittel:'Earlybird', bilde:'bilder/005-earlybird.jpg', video:'https://malestudio.kristinoksavik.com/courses/37558-maleri-5-earlybird-en-beskrivelse', produktliste:'produktlister-lokal/produktliste-5-Earlybird.pdf', tags:['Powertex','A-Å','Akryl','kaldvoks','silkepapir'], kurs:'' },
+  { nr:'6', tittel:'Nature (6)', bilde:'bilder/006-nature-6.jpg', video:'https://malestudio.kristinoksavik.com/courses/37641-maleri-6-nature-silkepapirteknikk-og', produktliste:'produktlister-lokal/produktliste-maleri-Nature.pdf', tags:['Akryl','A-Å','Nybegynner','silkepapir'], kurs:'' },
+  { nr:'7', tittel:'Moments', bilde:'bilder/007-moments.jpg', video:'https://malestudio.kristinoksavik.com/courses/37649-maleri-7-moments', produktliste:'', tags:['Powertex','A-Å'], kurs:'' },
+  { nr:'8', tittel:'Structure', bilde:'bilder/008-nature.jpg', video:'https://malestudio.kristinoksavik.com/courses/37650-maleri-8-structure', produktliste:'produktlister-lokal/produktliste-8-Structure.pdf', tags:['Powertex','A-Å','Nybegynner','Stoneart'], kurs:'' },
+  { nr:'9', tittel:'Lys', bilde:'bilder/009-lys.jpg', video:'https://malestudio.kristinoksavik.com/courses/37549-maleri-9-lys', produktliste:'produktlister-lokal/produktliste-9-Lys.pdf', tags:['Powertex','A-Å','kaldvoks','akrylspray'], kurs:'' },
+  { nr:'10', tittel:'Triplets', bilde:'bilder/010-triplets.jpg', video:'https://malestudio.kristinoksavik.com/courses/36457-maleri-10-elines-triplets', produktliste:'produktlister-lokal/produktliste-10-Triplets.pdf', tags:['A-Å','Nybegynner','Oksalim','Kakellim og annen struktur','akrylspray','silkepapir','avismakulator'], kurs:'' },
+  { nr:'11', tittel:'Gullregn', bilde:'bilder/011-gullregn.jpg', video:'https://malestudio.kristinoksavik.com/courses/37570-maleri-12-gullregn', produktliste:'', tags:['Powertex','A-Å','Teknikk trening'], kurs:'' },
+  { nr:'13', tittel:'Blue Magic', bilde:'bilder/013-blue-magic.jpg', video:'https://malestudio.kristinoksavik.com/courses/30981-maleri-13-blue-magic', produktliste:'produktlister-lokal/produktliste-13-Blue-Magic.pdf', tags:['Powertex','A-Å'], kurs:'' },
+  { nr:'15', tittel:'Håp', bilde:'bilder/015-hap.jpg', video:'https://malestudio.kristinoksavik.com/courses/37573-maleri-15-haap', produktliste:'produktlister-lokal/produktliste-15-Hap.pdf', tags:['Akryl','A-Å','Kakellim og annen struktur','LEVEL2'], kurs:'' },
+  { nr:'16', tittel:'Vår', bilde:'bilder/016-var.jpg', video:'https://malestudio.kristinoksavik.com/courses/37574-maleri-16-vaar', produktliste:'produktlister-lokal/produktliste-16-Var.pdf', tags:['Powertex','A-Å','LEVEL2','krakelering'], kurs:'' },
+  { nr:'17', tittel:'Yellow Party', bilde:'bilder/017-yellow-party.jpg', video:'https://malestudio.kristinoksavik.com/courses/37644-maleri-17-sandpasta-og-3dflex-og-aging', produktliste:'', tags:['Powertex','A-Å','LEVEL3','krakelering'], kurs:'' },
+  { nr:'18', tittel:'Limited', bilde:'bilder/018-limited.jpg', video:'https://malestudio.kristinoksavik.com/courses/37643-maleri-18-limited-lite-bilde-med', produktliste:'', tags:['Powertex','A-Å','Mixed Media (pålimte detaljer)','Nybegynner'], kurs:'' },
+  { nr:'19', tittel:'Earth Wind and Fire', bilde:'bilder/019-earth-wind-and-fire.jpg', video:'https://malestudio.kristinoksavik.com/courses/37646-maleri-19-stoneart-med-ekstra-struktur', produktliste:'', tags:['Powertex','A-Å','Stoneart'], kurs:'' },
+  { nr:'20', tittel:'Blue Light', bilde:'bilder/020-blue-light.jpg', video:'https://malestudio.kristinoksavik.com/courses/37648-maleri-20-blue-light', produktliste:'', tags:['Powertex','A-Å','Nybegynner','LEVEL3'], kurs:'' },
+  { nr:'22', tittel:'Blåner', bilde:'bilder/022-blaner.jpg', video:'https://malestudio.kristinoksavik.com/courses/33843-maleri-22-blaaner', produktliste:'produktlister-lokal/produktliste-22-Blaner.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','Sjablong','LEVEL2','krakelering','akrylspray','gesso'], kurs:'' },
+  { nr:'23', tittel:'Natural Glow', bilde:'bilder/023-natural-glow.jpg', video:'https://malestudio.kristinoksavik.com/courses/34831-maleri-23-natural-glow', produktliste:'produktlister-lokal/produktliste-23-Natural-Glow.pdf', tags:['Powertex','A-Å'], kurs:'' },
+  { nr:'24', tittel:'The News', bilde:'bilder/024-the-news.jpg', video:'https://malestudio.kristinoksavik.com/courses/35525-maleri-24-the-news-avispapir-skrift-i', produktliste:'', tags:['A-Å','Oksalim','Sjablong'], kurs:'' },
+  { nr:'25', tittel:'Ballerina', bilde:'bilder/025-ballerina.jpg', video:'https://malestudio.kristinoksavik.com/courses/37565-maleri-25-ballerina', produktliste:'produktlister-lokal/produktliste-25-Ballerina.pdf', tags:['Akryl','A-Å','LEVEL2'], kurs:'' },
+  { nr:'26', tittel:'Stories', bilde:'bilder/026-stories.jpg', video:'https://malestudio.kristinoksavik.com/courses/37118-maleri-26-stories', produktliste:'produktlister-lokal/produktliste-26-Stories.pdf', tags:['A-Å','Oksalim','Sjablong','Mixed Media (pålimte detaljer)','akrylspray','silkepapir','avismakulator','bobler'], kurs:'' },
+  { nr:'27', tittel:'Harmony', bilde:'bilder/027-harmony.jpg', video:'https://malestudio.kristinoksavik.com/courses/37823-maleri-27-harmony-of-life', produktliste:'produktlister-lokal/produktliste-27-Harmony.pdf', tags:['Powertex','A-Å','LEVEL2','kaldvoks'], kurs:'' },
+  { nr:'28', tittel:'Open Book', bilde:'bilder/028-open-book.jpg', video:'https://malestudio.kristinoksavik.com/courses/38328-maleri-28-open-book', produktliste:'produktlister-lokal/produktliste-28-Open-Book.pdf', tags:['Powertex','A-Å','Sjablong','akrylspray','silkepapir','bobler'], kurs:'' },
+  { nr:'29', tittel:'Belyst', bilde:'bilder/029-belyst.jpg', video:'https://malestudio.kristinoksavik.com/courses/39568-maleri-29-belyst', produktliste:'produktlister-lokal/produktliste-29-Belyst.pdf', tags:['Powertex','A-Å','Oksalim','Nybegynner','krakelering','Akryl','akrylspray','silkepapir'], kurs:'' },
+  { nr:'30', tittel:'Dawn', bilde:'bilder/030-dawn.jpg', video:'https://malestudio.kristinoksavik.com/courses/40596-maleri-30-dawn', produktliste:'produktlister-lokal/produktliste-30-Dawn.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','Sjablong','akrylspray'], kurs:'' },
+  { nr:'31', tittel:'Tvilling', bilde:'bilder/031-tvilling.jpg', video:'https://malestudio.kristinoksavik.com/courses/41948-maleri-31-1-1-1', produktliste:'produktlister-lokal/produktliste-31-Tvilling.pdf', tags:['Powertex','A-Å','kaldvoks','akrylspray'], kurs:'' },
+  { nr:'32', tittel:'Fire', bilde:'bilder/032-fire.jpg', video:'https://malestudio.kristinoksavik.com/courses/44390-maleri-32-fire', produktliste:'produktlister-lokal/produktliste-32-Fire.pdf', tags:['Powertex','A-Å','Mixed Media (pålimte detaljer)'], kurs:'' },
+  { nr:'33', tittel:'Oriental Grunge', bilde:'bilder/033-oriental-grunge.jpg', video:'https://malestudio.kristinoksavik.com/courses/44719-maleri-33-oriental-grunge', produktliste:'produktlister-lokal/produktliste-33-Oriental-Grunge.pdf', tags:['Powertex','A-Å','Sjablong','Mixed Media (pålimte detaljer)','akrylspray'], kurs:'' },
+  { nr:'34', tittel:'Underbevisst', bilde:'bilder/034-underbevisst.jpg', video:'https://malestudio.kristinoksavik.com/courses/44751-maleri-34-underbevisst', produktliste:'produktlister-lokal/produktliste-34-Underbevisst.pdf', tags:['Powertex','A-Å','Kakellim og annen struktur','Nybegynner','akrylspray','silkepapir'], kurs:'' },
+  { nr:'35', tittel:'Vingar', bilde:'bilder/035-vingar.jpg', video:'https://malestudio.kristinoksavik.com/courses/44753-maleri-35-vingar', produktliste:'produktlister-lokal/produktliste-35-Vingar.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','Sjablong','Mixed Media (pålimte detaljer)','LEVEL3','akrylspray'], kurs:'' },
+  { nr:'36', tittel:'Beyond Blues', bilde:'bilder/036-beyond-blues.jpg', video:'https://malestudio.kristinoksavik.com/courses/50451-maleri-36-beyond-blues', produktliste:'produktlister-lokal/produktliste-36-Beyond-Blues.pdf', tags:['Akryl','A-Å','Nybegynner','akrylspray','silkepapir'], kurs:'' },
+  { nr:'37', tittel:'Reaksjoner', bilde:'bilder/037-reaksjoner.jpg', video:'https://malestudio.kristinoksavik.com/courses/47056-maleri-37-reaksjoner', produktliste:'produktlister-lokal/produktliste-37-Reaksjoner.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','LEVEL2','rust','akrylspray','silkepapir'], kurs:'' },
+  { nr:'38', tittel:'Lysstråle', bilde:'bilder/038-lysstrale.jpg', video:'https://malestudio.kristinoksavik.com/courses/51035-maleri-38-lysstraale', produktliste:'produktlister-lokal/produktliste-38-Lysstrale.pdf', tags:['Powertex','Akryl','A-Å','LEVEL2','kaldvoks'], kurs:'' },
+  { nr:'39', tittel:'Crack', bilde:'bilder/039-crack.jpg', video:'https://malestudio.kristinoksavik.com/courses/50008-maleri-39-crack', produktliste:'produktlister-lokal/produktliste-39-Crack.pdf', tags:['Powertex','A-Å','Oksalim','kaldvoks'], kurs:'' },
+  { nr:'40', tittel:'Dusty Rose', bilde:'bilder/040-dusty-rose.jpg', video:'https://malestudio.kristinoksavik.com/courses/52814-maleri-40-dusty-rose', produktliste:'produktlister-lokal/produktliste-40-Dusty-Rose.pdf', tags:['Akryl','A-Å','Oksalim','Sjablong','LEVEL2','akrylspray'], kurs:'' },
+  { nr:'41', tittel:'Black Sunset', bilde:'bilder/041-black-sunset.jpg', video:'https://malestudio.kristinoksavik.com/courses/52593-maleri-41-black-sunset', produktliste:'produktlister-lokal/produktliste-41-Black-Sunset.pdf', tags:['Akryl','A-Å'], kurs:'' },
+  { nr:'42', tittel:'Fields of Gold', bilde:'bilder/042-fields-of-gold.jpg', video:'https://malestudio.kristinoksavik.com/courses/53315-maleri-42-fields-of-gold', produktliste:'produktlister-lokal/produktliste-42-Fields-of-Gold.pdf', tags:['A-Å','Akryl','Kakellim og annen struktur','Sjablong','Mixed Media (pålimte detaljer)'], kurs:'' },
+  { nr:'43', tittel:'Fireworks', bilde:'bilder/043-fireworks.jpg', video:'https://malestudio.kristinoksavik.com/courses/55228-maleri-43-fireworks', produktliste:'produktlister-lokal/produktliste-43-Fireworks.pdf', tags:['Powertex','Akryl','A-Å'], kurs:'' },
+  { nr:'44', tittel:'Sandstorm', bilde:'bilder/044-sandstorm.jpg', video:'https://malestudio.kristinoksavik.com/courses/53543-maleri-44-sandstorm', produktliste:'produktlister-lokal/produktliste-44-Sandstorm.pdf', tags:['Powertex','Akryl','A-Å','Stoneart','akrylspray'], kurs:'' },
+  { nr:'45', tittel:'Reflections of Spring', bilde:'bilder/045-reflections-of-spring.jpg', video:'https://malestudio.kristinoksavik.com/courses/54035-maleri-45-reflections-of-spring', produktliste:'produktlister-lokal/produktliste-45-Reflections-of-Spring.pdf', tags:['Powertex','Akryl','A-Å','LEVEL3','akrylspray','silkepapir'], kurs:'' },
+  { nr:'46', tittel:'Simplicity', bilde:'bilder/046-simplicity.jpg', video:'https://malestudio.kristinoksavik.com/courses/59193-maler-46-simplicity', produktliste:'produktlister-lokal/produktliste-46-Simplicity.pdf', tags:['Powertex','Akryl','A-Å','Kakellim og annen struktur','Nybegynner','silkepapir'], kurs:'' },
+  { nr:'47', tittel:'The Beauty of Imperfection', bilde:'bilder/047-the-beauty-of-imperfection.jpg', video:'https://malestudio.kristinoksavik.com/courses/56463-maleri-47-the-beauty-of-imperfection', produktliste:'produktlister-lokal/produktliste-47-The-Beauty-of-Imperfection.pdf', tags:['Powertex','A-Å','Oksalim','akrylspray','silkepapir'], kurs:'' },
+  { nr:'48', tittel:'Cohesion', bilde:'bilder/048-cohesion.jpg', video:'https://malestudio.kristinoksavik.com/courses/55788-maleri-48-samhoerighet-cohesion-engelsk', produktliste:'produktlister-lokal/Produktliste-Cohesion.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','Nybegynner','kaldvoks'], kurs:'' },
+  { nr:'49', tittel:'Remake Grade', bilde:'bilder/049-remake-grade.jpg', video:'https://malestudio.kristinoksavik.com/courses/61861-maleri-49-remake-of-a-painting-b-grade', produktliste:'', tags:['A-Å','Powertex','Teknikk trening','B Grade','LEVEL3'], kurs:'' },
+  { nr:'50', tittel:'Dark Gold', bilde:'bilder/050-dark-gold.jpg', video:'https://malestudio.kristinoksavik.com/courses/62499-maleri-50-dark-gold', produktliste:'produktlister-lokal/produktliste-50-Dark-Gold.pdf', tags:['Powertex','Akryl','A-Å','Sjablong','Mixed Media (pålimte detaljer)','Nybegynner','akrylspray'], kurs:'' },
+  { nr:'51', tittel:'Garden', bilde:'bilder/051-garden.jpg', video:'https://malestudio.kristinoksavik.com/courses/62464-maleri-51-garden', produktliste:'', tags:['A-Å','Powertex','Kakellim og annen struktur','Sjablong'], kurs:'' },
+  { nr:'52', tittel:'Stalactites', bilde:'bilder/052-stalactites.jpg', video:'https://malestudio.kristinoksavik.com/courses/55194-maleri-52-finding-stalactites', produktliste:'produktlister-lokal/produktliste-52-Stalactites.pdf', tags:['Powertex','Akryl','A-Å','krakelering','kaldvoks','akrylspray','silkepapir'], kurs:'' },
+  { nr:'53', tittel:'No Limits', bilde:'bilder/053-no-limits.jpg', video:'https://malestudio.kristinoksavik.com/courses/50310-maleri-53-no-limits', produktliste:'produktlister-lokal/produktliste-53-No-Limits.pdf', tags:['Powertex','Akryl','A-Å','LEVEL3','krakelering','akrylspray','silkepapir'], kurs:'' },
+  { nr:'54', tittel:'Reflection', bilde:'bilder/054-reflection.jpg', video:'https://malestudio.kristinoksavik.com/courses/65479-maleri-54-reflection-eng', produktliste:'produktlister-lokal/produktliste-54-Reflection.pdf', tags:['Akryl','A-Å','Nybegynner','silkepapir'], kurs:'' },
+  { nr:'55', tittel:'Hidden Gold', bilde:'bilder/055-hidden-gold.jpg', video:'https://malestudio.kristinoksavik.com/courses/62541-maleri-55-hidden-gold', produktliste:'produktlister-lokal/produktliste-55-Hidden-Gold.pdf', tags:['Powertex','Akryl','A-Å','Kakellim og annen struktur','LEVEL2','akrylspray'], kurs:'' },
+  { nr:'56', tittel:'The Letter', bilde:'bilder/056-the-letter.jpg', video:'https://malestudio.kristinoksavik.com/courses/62599-maleri-56-the-letter', produktliste:'produktlister-lokal/produktliste-56-The-Letter.pdf', tags:['Powertex','A-Å','Kakellim og annen struktur','Sjablong','Mixed Media (pålimte detaljer)','akrylspray'], kurs:'' },
+  { nr:'57', tittel:'Lava', bilde:'bilder/057-lava.jpg', video:'https://malestudio.kristinoksavik.com/courses/62495-maleri-57-lava', produktliste:'produktlister-lokal/produktliste-57-Lava.pdf', tags:['Powertex','Akryl','A-Å','krakelering'], kurs:'' },
+  { nr:'58', tittel:'Freedom', bilde:'bilder/058-freedom.jpg', video:'https://malestudio.kristinoksavik.com/courses/35462-maleri-58-freedom', produktliste:'produktlister-lokal/produktliste-58-Freedom.pdf', tags:['Powertex','A-Å','Oksalim','kaldvoks'], kurs:'' },
+  { nr:'59', tittel:'60 Redcracles Grade', bilde:'bilder/059-60-redcracles-grade.jpg', video:'https://malestudio.kristinoksavik.com/courses/71235-brigitte-grade-maleri-59-60-crackle', produktliste:'', tags:['A-Å','Powertex','Teknikk trening','B Grade','Advanced','LEVEL3','krakelering'], kurs:'' },
+  { nr:'60', tittel:'Large Brigitte Grade', bilde:'bilder/large-brigitte-grade.jpg', video:'https://malestudio.kristinoksavik.com/courses/76007-a-z-maleri-large-med-brigitte-grade', produktliste:'produktlister-lokal/produktliste-60-Large-Brigitte-Grade.pdf', tags:['A-Å','Powertex','B Grade','ENG Kurs','Advanced','krakelering','pouringteknikk','Akryl'], kurs:'' },
+  { nr:'61', tittel:'Lengsel', bilde:'bilder/061-lengsel.jpg', video:'https://malestudio.kristinoksavik.com/courses/72103-maleri-61-lengsel', produktliste:'produktlister-lokal/produktliste-61-Lengsel.pdf', tags:['Powertex','A-Å','Oksalim','Mixed Media (pålimte detaljer)','silkepapir'], kurs:'' },
+  { nr:'62', tittel:'Guardian Angel', bilde:'bilder/062-guardian-angel.jpg', video:'https://malestudio.kristinoksavik.com/courses/71330-maleri-62-guardian-angel', produktliste:'produktlister-lokal/produktliste-62-Guardian-Angel.pdf', tags:['Akryl','A-Å','Oksalim','Sjablong','akrylspray','silkepapir'], kurs:'' },
+  { nr:'63', tittel:'Blue Velvet', bilde:'bilder/063-blue-velvet.jpg', video:'https://malestudio.kristinoksavik.com/courses/73298-maleri-63-blue-velvet', produktliste:'produktlister-lokal/produktliste-Blue-Velvet-ENG.pdf', tags:['Powertex','A-Å','ENG Kurs','Advanced','kaldvoks'], kurs:'' },
+  { nr:'64', tittel:'Sommerbris', bilde:'bilder/064-sommerbris.jpg', video:'https://malestudio.kristinoksavik.com/courses/73486-maleri-64-sommerbris', produktliste:'produktlister-lokal/produktliste-64-Sommerbris.pdf', tags:['Akryl','A-Å','Sjablong','Mixed Media (pålimte detaljer)','silkepapir'], kurs:'' },
+  { nr:'65', tittel:'Videre', bilde:'bilder/065-videre.jpg', video:'https://malestudio.kristinoksavik.com/courses/74032-maleri-65-videre', produktliste:'produktlister-lokal/produktliste-65-Videre.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','kaldvoks','silkepapir'], kurs:'' },
+  { nr:'66', tittel:'Survivor', bilde:'bilder/066-survivor.jpg', video:'https://malestudio.kristinoksavik.com/courses/65507-maleri-66-survivor', produktliste:'produktlister-lokal/produktliste-66-Survivor.pdf', tags:['Akryl','A-Å','Kakellim og annen struktur','silkepapir'], kurs:'' },
+  { nr:'67', tittel:'August', bilde:'bilder/067-august.jpg', video:'https://malestudio.kristinoksavik.com/courses/65777-maleri-67-august', produktliste:'produktlister-lokal/produktliste-67-August.pdf', tags:['Powertex','A-Å','Oksalim','Sjablong','kaldvoks','akrylspray','silkepapir'], kurs:'' },
+  { nr:'68', tittel:'Blody Crackles', bilde:'bilder/068-blody-crackles.jpg', video:'https://malestudio.kristinoksavik.com/courses/76578-maleri-68-red-and-grey-crackles-brigitte', produktliste:'produktlister-lokal/Produktliste-bloody-crackles.pdf', tags:['A-Å','Powertex','B Grade','ENG Kurs','Advanced','krakelering','pouringteknikk'], kurs:'' },
+  { nr:'69', tittel:'Prosecco', bilde:'bilder/069-prosecco.jpg', video:'https://malestudio.kristinoksavik.com/courses/75583-maleri-69-prosecco', produktliste:'produktlister-lokal/produktliste-69-Prosecco.pdf', tags:['Powertex','A-Å','Oksalim','Kakellim og annen struktur','akrylspray','silkepapir'], kurs:'' },
+  { nr:'70', tittel:'Family', bilde:'bilder/070-family.jpg', video:'https://malestudio.kristinoksavik.com/courses/78906-maleri-70-family', produktliste:'produktlister-lokal/produktliste-70-Family.pdf', tags:['Akryl','A-Å','Sjablong','Mixed Media (pålimte detaljer)','silkepapir'], kurs:'' },
+  { nr:'71', tittel:'Bliss', bilde:'bilder/071-bliss.jpg', video:'https://malestudio.kristinoksavik.com/courses/80694-maleri-71-bliss', produktliste:'produktlister-lokal/produktliste-71-Bliss.pdf', tags:['A-Å','Powertex','Akryl','Oksalim','Kakellim og annen struktur','akrylspray','silkepapir'], kurs:'' },
+  { nr:'72', tittel:'Aurora', bilde:'bilder/072-aurora.jpg', video:'https://malestudio.kristinoksavik.com/courses/81937-maleri-72-aurora', produktliste:'produktlister-lokal/produktliste-72-Aurora.pdf', tags:['Akryl','A-Å','Oksalim','silkepapir'], kurs:'' },
+  { nr:'73', tittel:'Høydeforskjell', bilde:'bilder/073-hoydeforskjell.jpg', video:'https://malestudio.kristinoksavik.com/courses/81953-maleri-73-hoeydeforskjell', produktliste:'produktlister-lokal/produktliste-73-Hoydeforskjell.pdf', tags:['Powertex','A-Å','Oksalim','kaldvoks','akrylspray','silkepapir'], kurs:'' },
+  { nr:'74', tittel:'Big Blue', bilde:'bilder/074-big-blue.jpg', video:'https://malestudio.kristinoksavik.com/courses/72534-maleri-74-big-blue', produktliste:'produktlister-lokal/produktliste-74-Big-Blue.pdf', tags:['Powertex','Akryl','A-Å','Oksalim','akrylspray','silkepapir'], kurs:'' },
+  { nr:'75', tittel:'Pink Secret', bilde:'bilder/075-pink-secret.jpg', video:'https://malestudio.kristinoksavik.com/courses/82144-maleri-75-brigitte-grade-pink-secret', produktliste:'produktlister-lokal/Produktliste-Pink-Secret.pdf', tags:['Powertex','Akryl','A-Å','Advanced','pouringteknikk','3Dflex','krakelering'], kurs:'' },
+  { nr:'76', tittel:'Morning Glory', bilde:'bilder/076-morning-glory.jpg', video:'https://malestudio.kristinoksavik.com/courses/84346-maleri-76-morning-glory', produktliste:'produktlister-lokal/produktliste-76-Morning-Glory.pdf', tags:['A-Å'], kurs:'' },
+  { nr:'77', tittel:'From Chaos to Cosmos', bilde:'bilder/from-chaos-to-cosmos.jpg', video:'https://malestudio.kristinoksavik.com/courses/83841-maleri-77-from-chaos-to-cosmos', produktliste:'produktlister-lokal/produktliste-77-From-Chaos-to-Cosmos.pdf', tags:['A-Å','Akryl','Sjablong','Foto teknikker','papirteknikk','akrylspray','silkepapir'], kurs:'' },
+  { nr:'78', tittel:'Time Is Now', bilde:'bilder/078-time-is-now.jpg', video:'https://malestudio.kristinoksavik.com/courses/85841-maleri-78-time-is-now', produktliste:'produktlister-lokal/produktliste-78-Time-Is-Now.pdf', tags:['A-Å','Sjablong','silkepapir','khadipapir','avismakulator'], kurs:'' },
+  { nr:'79', tittel:'Free My Soul', bilde:'bilder/079-free-my-soul.jpg', video:'https://malestudio.kristinoksavik.com/courses/86374-maleri-79-free-my-soul', produktliste:'produktlister-lokal/produktliste-79-Free-My-Soul.pdf', tags:['A-Å','Oksalim','Powertex','papirteknikk'], kurs:'' },
+  { nr:'80', tittel:'Golden Dream', bilde:'bilder/080-golden-dream.jpg', video:'https://malestudio.kristinoksavik.com/courses/87085-maleri-80-golden-dream', produktliste:'produktlister-lokal/produktliste-80-Golden-Dream.pdf', tags:['A-Å','Akryl','avismakulator'], kurs:'' },
+  { nr:'81', tittel:'Raw Energy', bilde:'bilder/081-raw-energy.png', video:'https://malestudio.kristinoksavik.com/courses/87628-maleri-81-raw-energy', produktliste:'produktlister-lokal/Produktliste-Raw-Energy.pdf', tags:['A-Å','kaldvoks'], kurs:'' },
+  { nr:'82', tittel:'Divine Progress', bilde:'bilder/082-divine-progress.jpg', video:'https://malestudio.kristinoksavik.com/courses/87674-maleri-82-divine-progress', produktliste:'produktlister-lokal/produktliste-82-Divine-Progress.pdf', tags:['A-Å','krakelering'], kurs:'' },
+  { nr:'83', tittel:'Plutselig', bilde:'bilder/083-plutselig.jpg', video:'https://malestudio.kristinoksavik.com/courses/88084-maleri-83-plutselig', produktliste:'produktlister-lokal/produktliste-83-Plutselig.pdf', tags:['A-Å','Akryl','silkepapir'], kurs:'' },
+  { nr:'84', tittel:'Dark Ligth', bilde:'bilder/084-dark-ligth.jpg', video:'https://malestudio.kristinoksavik.com/courses/88582-maleri-84-dark-light', produktliste:'produktlister-lokal/produktliste-84-Dark-Ligth.pdf', tags:['A-Å','papirteknikk','medium gel','Akryl','akrylspray','silkepapir','avismakulator'], kurs:'' },
+  { nr:'85', tittel:'Golden Buzzer', bilde:'bilder/085-golden-buzzer.jpg', video:'https://malestudio.kristinoksavik.com/courses/89162-maleri-nr-85-golden-buzzer-b-z', produktliste:'produktlister-lokal/produktliste-85-Golden-Buzzer.pdf', tags:['A-Å'], kurs:'' },
+  { nr:'86', tittel:'City of Ligth', bilde:'bilder/086-city-of-ligth.jpg', video:'https://malestudio.kristinoksavik.com/courses/90058-maleri-86-city-of-light', produktliste:'produktlister-lokal/produktliste-86-City-of-Ligth.pdf', tags:['A-Å','papirteknikk','medium gel','Akryl','akrylspray','silkepapir'], kurs:'' },
+  { nr:'87', tittel:'On Fire', bilde:'bilder/087-on-fire.jpg', video:'https://malestudio.kristinoksavik.com/courses/90486-maleri-87-on-fire', produktliste:'produktlister-lokal/produktliste-87-On-Fire.pdf', tags:['A-Å','Oksalim','kaldvoks','silkepapir','khadipapir'], kurs:'' },
+  { nr:'88', tittel:'Dream Big', bilde:'bilder/088-dream-big.jpg', video:'https://malestudio.kristinoksavik.com/courses/90932-maleri-88-dream-big', produktliste:'', tags:['A-Å','Foto teknikker'], kurs:'' },
+  { nr:'89', tittel:'Bølge', bilde:'bilder/089-bolgen.jpg', video:'https://malestudio.kristinoksavik.com/courses/91061-maleri-89-boelge', produktliste:'produktlister-lokal/Produktliste-Bolge.pdf', tags:['A-Å','pouringteknikk','gesso','Akryl','silkepapir'], kurs:'' },
+  { nr:'90', tittel:'Feather', bilde:'bilder/090-feather-a.jpg', video:'https://malestudio.kristinoksavik.com/courses/91058-maleri-90-feather', produktliste:'produktlister-lokal/produktliste-90-Feather.pdf', tags:['A-Å','pouringteknikk','gesso','silkepapir'], kurs:'' },
+  { nr:'91', tittel:'Rhythm of Africa', bilde:'bilder/091-rhythm-of-africa.jpg', video:'https://malestudio.kristinoksavik.com/courses/91059-maleri-91-rhythm-of-africa', produktliste:'produktlister-lokal/produktliste-91-Rhythm-of-Africa.pdf', tags:['A-Å','Oksalim','Powertex','Sjablong','krakelering','akrylspray','silkepapir'], kurs:'' },
+  { nr:'92', tittel:'Drømmeland', bilde:'bilder/092-drommeland.jpg', video:'https://malestudio.kristinoksavik.com/courses/91060-maleri-92-droemmeland', produktliste:'produktlister-lokal/produktliste-92-Drommeland.pdf', tags:['A-Å','Akryl','akrylspray','silkepapir'], kurs:'' },
+  { nr:'93', tittel:'Gold Rush', bilde:'bilder/093-gold-rush.jpg', video:'https://malestudio.kristinoksavik.com/courses/95680-maleri-93-gold-rush', produktliste:'produktlister-lokal/produktliste-93-Gold-Rush.pdf', tags:['A-Å','Oksalim','gullregn','kaldvoks','akrylspray','avismakulator'], kurs:'' },
+  { nr:'94', tittel:'Eksistens', bilde:'bilder/094-eksistens.jpg', video:'https://malestudio.kristinoksavik.com/courses/96698-maleri-94-eksistens', produktliste:'produktlister-lokal/produktliste-94-Eksistens.pdf', tags:['A-Å','Oksalim','krakelering','kaldvoks','silkepapir','avismakulator'], kurs:'' },
+  { nr:'95', tittel:'Be in the Flow', bilde:'bilder/095-be-in-the-flow.jpg', video:'https://malestudio.kristinoksavik.com/courses/98807-maleri-95-be-in-the-flow', produktliste:'produktlister-lokal/produktliste-95-Be-in-the-Flow.pdf', tags:['A-Å','bobler','gesso'], kurs:'' },
+  { nr:'96', tittel:'Colorful', bilde:'bilder/096-colorful.jpg', video:'https://malestudio.kristinoksavik.com/courses/99643-maleri-96-colorful', produktliste:'produktlister-lokal/produktliste-96-Colorful.pdf', tags:['A-Å','bobler','gesso'], kurs:'' },
+  { nr:'97', tittel:'Ancient Memory', bilde:'bilder/097-ancient-memory.jpg', video:'https://malestudio.kristinoksavik.com/courses/100037-maleri-97-ancient-memory', produktliste:'', tags:['A-Å','Stoneart'], kurs:'' },
+  { nr:'98', tittel:'Dark Happiness', bilde:'bilder/098-dark-happiness.jpg', video:'https://malestudio.kristinoksavik.com/courses/100302-maleri-98-dark-happiness', produktliste:'', tags:['A-Å'], kurs:'' },
+  { nr:'99', tittel:'Blue Green Horizon', bilde:'bilder/099-blue-green-horizon.jpg', video:'https://malestudio.kristinoksavik.com/courses/100303-maleri-99-green-horizon', produktliste:'produktlister-lokal/produktliste-99-Blue-Green-Horizon.pdf', tags:['A-Å','Akryl','kaldvoks','akrylspray','silkepapir','avismakulator'], kurs:'' },
+  { nr:'100', tittel:'Bigger Better', bilde:'bilder/100-bigger-better.jpg', video:'https://malestudio.kristinoksavik.com/courses/100304-maleri-100-bigger-better', produktliste:'', tags:['A-Å'], kurs:'' },
+  { nr:'101', tittel:'The House', bilde:'bilder/101-the-house.jpg', video:'https://malestudio.kristinoksavik.com/courses/100310-maleri-101-the-house', produktliste:'produktlister-lokal/produktliste-101-The-House.pdf', tags:['A-Å','Foto teknikker','medium gel','kaldvoks'], kurs:'' },
+  { nr:'102', tittel:'Dark Sky', bilde:'bilder/102-dark-sky.jpg', video:'https://malestudio.kristinoksavik.com/courses/101359-maleri-102-dark-sky', produktliste:'produktlister-lokal/produktliste-102-Dark-Sky.pdf', tags:['A-Å','strukturpasta'], kurs:'' },
+  { nr:'103', tittel:'Skulptur med isopor', bilde:'bilder/103-skulptur-stoneart.jpg', video:'https://malestudio.kristinoksavik.com/courses/102336-nr-103-hvordan-lage-skulptur-i-isopor-og', produktliste:'produktlister-lokal/produktliste-103-Skulptur-med-isopor.pdf', tags:['A-Å','Stoneart','skulptur'], kurs:'' },
+  { nr:'104', tittel:'Trust Your Soul', bilde:'bilder/104-trust-your-soul.jpg', video:'https://malestudio.kristinoksavik.com/courses/103242-maleri-104-trust-your-soul', produktliste:'produktlister-lokal/produktliste-104-Trust-Your-Soul.pdf', tags:['A-Å','akrylspray','avismakulator','gesso','bobler'], kurs:'' },
+  { nr:'105', tittel:'I all sin enkelhet', bilde:'bilder/105-i-all-sin-enkelhet.jpg', video:'https://malestudio.kristinoksavik.com/courses/104536-maleri-105-i-all-sin-enkelhet', produktliste:'produktlister-lokal/produktliste-105-I-all-sin-enkelhet.pdf', tags:['A-Å'], kurs:'' },
+  { nr:'106', tittel:'Rå', bilde:'bilder/106-ra.jpg', video:'https://malestudio.kristinoksavik.com/courses/105514-maleri-106-raa', produktliste:'produktlister-lokal/produktliste-106-Ra.pdf', tags:['A-Å','bobler'], kurs:'' },
+  { nr:'107', tittel:'Stillhet', bilde:'bilder/107-stillhet.jpg', video:'https://malestudio.kristinoksavik.com/courses/106574-maleri-107-stillhet', produktliste:'produktlister-lokal/produktliste-107-Stillhet.pdf', tags:['A-Å','kaldvoks','akrylspray'], kurs:'' },
+  { nr:'108', tittel:'Refleksjon', bilde:'bilder/108-refleksjon.jpg', video:'https://malestudio.kristinoksavik.com/courses/107409-maleri-108-refleksjon', produktliste:'produktlister-lokal/produktliste-108-Refleksjon.pdf', tags:['A-Å','Oksalim','kaldvoks','silkepapir'], kurs:'' },
+  { nr:'109', tittel:'Oktober', bilde:'bilder/109-oktober.jpg', video:'https://malestudio.kristinoksavik.com/courses/107867-maleri-109-oktober', produktliste:'produktlister-lokal/produktliste-109-Oktober.pdf', tags:['A-Å','Akryl','akrylspray','avismakulator'], kurs:'' },
+  { nr:'110', tittel:'Angel', bilde:'bilder/110-angel.jpg', video:'https://malestudio.kristinoksavik.com/courses/108290-maleri-110-angel', produktliste:'', tags:['A-Å'], kurs:'' },
+  { nr:'111', tittel:'Flow', bilde:'bilder/111-flow.jpg', video:'https://malestudio.kristinoksavik.com/courses/109586-maleri-111-flow', produktliste:'', tags:['A-Å','Sjablong','sandpasta','strukturpasta'], kurs:'' },
+  { nr:'112', tittel:'Under Overflaten', bilde:'bilder/112-under-overflaten.jpg', video:'https://malestudio.kristinoksavik.com/courses/110178-maleri-112-under-overflaten', produktliste:'produktlister-lokal/produktliste-112-Under-Overflaten.pdf', tags:['A-Å','Akryl'], kurs:'' },
+  { nr:'113', tittel:'Rusty Glow', bilde:'bilder/113-rusty-glow.jpg', video:'https://malestudio.kristinoksavik.com/courses/111149-maleri-113-rusty-glow', produktliste:'produktlister-lokal/produktliste-113-Rusty-Glow.pdf', tags:['A-Å','rust','Stoneart'], kurs:'' },
+  { nr:'115', tittel:'Evolution', bilde:'bilder/115-evolution.jpg', video:'https://malestudio.kristinoksavik.com/courses/113667-maleri-115-evolution', produktliste:'', tags:['A-Å'], kurs:'' },
+  { nr:'116', tittel:'Triplets Makeover', bilde:'bilder/116-triplets-makeover.jpg', video:'https://malestudio.kristinoksavik.com/courses/114566-maleri-116-triplets-makeover', produktliste:'produktlister-lokal/produktliste-116-Triplets-Makeover.pdf', tags:['A-Å','Oksalim','krakelering','kaldvoks'], kurs:'' },
+  { nr:'117', tittel:'Fragmenter', bilde:'bilder/117-fragmenter.jpg', video:'https://malestudio.kristinoksavik.com/courses/115315-maleri-117-fragments', produktliste:'produktlister-lokal/produktliste-117-Fragmenter.pdf', tags:['A-Å','Powertex','3Dflex','krakelering','pouringteknikk'], kurs:'' },
+  { nr:'118', tittel:'Bølgen II', bilde:'bilder/118-bolgen-ii.jpg', video:'https://malestudio.kristinoksavik.com/courses/116185-maleri-118-boelgen-ii', produktliste:'produktlister-lokal/produktliste-118-Bolgen-II.pdf', tags:['A-Å'], kurs:'' },
+  { nr:'119', tittel:'Frihet', bilde:'bilder/119-frihet.jpg', video:'https://malestudio.kristinoksavik.com/courses/117066-maleri-119', produktliste:'produktlister-lokal/produktliste-119-Frihet.pdf', tags:['A-Å','Oksalim'], kurs:'' },
+  { nr:'120', tittel:'Blue Ocean', bilde:'bilder/120-blue-ocean.jpg', video:'https://malestudio.kristinoksavik.com/courses/120037-maleri-120-blue-ocean', produktliste:'produktlister-lokal/produktliste-120-Blue-Ocean.pdf', tags:['A-Å','kaldvoks'], kurs:'' },
+  { nr:'121', tittel:'Release', bilde:'bilder/121-release.jpg', video:'https://malestudio.kristinoksavik.com/courses/120040-maleri-121-release', produktliste:'produktlister-lokal/Produkliste-Release.pdf', tags:['A-Å','Oksalim','Powertex','strukturpasta'], kurs:'' },
+  { nr:'122', tittel:'By Nigth', bilde:'bilder/122-by-nigth.jpg', video:'https://malestudio.kristinoksavik.com/courses/120802-maleri-122-by-nigth', produktliste:'produktlister-lokal/produktliste-122-By-Nigth.pdf', tags:['A-Å','Oksalim','Powertex','3Dflex'], kurs:'' },
+  { nr:'123', tittel:'Hidden Memories 80x80', bilde:'bilder/123-hidden-memories-80x80.jpg', video:'https://malestudio.kristinoksavik.com/courses/121507-maleri-123-hidden-memories', produktliste:'produktlister-lokal/produktliste-123-Hidden-Memories-80x80.pdf', tags:['A-Å','Oksalim','Akryl','papirteknikk','akrylspray','avismakulator'], kurs:'' },
+  { nr:'124', tittel:'Essens', bilde:'bilder/124-essens.jpg', video:'https://malestudio.kristinoksavik.com/courses/123160-maleri-124-essens', produktliste:'produktlister-lokal/produktliste-124-Essens.pdf', tags:['A-Å','Akryl','akrylspray','silkepapir','avismakulator'], kurs:'' },
+  { nr:'125', tittel:'OceanFlow', bilde:'bilder/oceanflow.png', video:'https://malestudio.kristinoksavik.com/courses/73144-bonusmaleri-kristin-grov-struktur', produktliste:'', tags:['A-Å','Inspirasjon','Teknikk trening','Kakellim og annen struktur','Advanced'], kurs:'' },
+  { nr:'126', tittel:'In Between', bilde:'bilder/in-between.jpg', video:'https://malestudio.kristinoksavik.com/courses/124490-in-between', produktliste:'produktlister-lokal/produktliste-126-In-Between.pdf', tags:['A-Å','Akryl','silkepapir','avismakulator'], kurs:'' },
+  { nr:'127', tittel:'Embrace Your Darkness', bilde:'bilder/127-embrace-your-darkness.jpg', video:'https://malestudio.kristinoksavik.com/courses/124507-maleri-127-embrace-your-darkness', produktliste:'produktlister-lokal/produktliste-127-Embrace-Your-Darkness.pdf', tags:['A-Å','Akryl','sandpasta','silkepapir','avismakulator'], kurs:'' },
+  { nr:'128', tittel:'Crackles In the Sun', bilde:'bilder/128-crackles-in-the-sun.jpg', video:'https://malestudio.kristinoksavik.com/courses/125566-maleri-128-crackles-in-the-sun', produktliste:'produktlister-lokal/produktliste-128-Crackles-In-the-Sun.pdf', tags:['A-Å','Powertex','3Dflex','sandpasta'], kurs:'' },
+  { nr:'129', tittel:'Small Yellow Cracles', bilde:'bilder/129-small-yellow-cracles.jpg', video:'https://malestudio.kristinoksavik.com/courses/125564-maleri-129-small-yellow-crackles', produktliste:'', tags:['A-Å','Powertex','3Dflex','sandpasta','krakelering'], kurs:'' },
+  { nr:'130', tittel:'Deep Forest', bilde:'bilder/130-deep-forest.jpg', video:'https://malestudio.kristinoksavik.com/courses/126905-maleri-130-deep-forest', produktliste:'produktlister-lokal/produktliste-130-Deep-Forest.pdf', tags:['A-Å'], kurs:'' },
+  { nr:'131', tittel:'Perfect Moment', bilde:'bilder/131-perfect-moment.png', video:'https://malestudio.kristinoksavik.com/courses/128772-maleri-131-perfect-moment', produktliste:'produktlister-lokal/produktliste-131-Perfect-Moment.pdf', tags:['A-Å','krakelering','pouringteknikk','kaldvoks','akrylspray'], kurs:'' },
+  { nr:'132', tittel:'Tåke opp av asken', bilde:'bilder/132-take-opp-av-asken.jpg', video:'https://malestudio.kristinoksavik.com/courses/129881-maleri-132-taake-opp-av-asken', produktliste:'produktlister-lokal/produktliste-132-Take-opp-av-asken.pdf', tags:['A-Å','Akryl','akrylspray'], kurs:'' },
+  { nr:'133', tittel:'Winter', bilde:'bilder/133-winter.jpg', video:'https://malestudio.kristinoksavik.com/courses/131046-maleri-133-winter', produktliste:'produktlister-lokal/produktliste-133-Winter.pdf', tags:['A-Å','3Dflex','sandpasta','Stoneart','krakelering','pouringteknikk','akrylspray'], kurs:'' },
+  { nr:'134', tittel:'Break The Ice', bilde:'bilder/134-break-the-ice.jpg', video:'https://malestudio.kristinoksavik.com/courses/133347-maleri-134-break-the-ice', produktliste:'produktlister-lokal/Breaking-the-Ice.pdf', tags:['A-Å','krakelering'], kurs:'' },
+  { nr:'135', tittel:'Starligth', bilde:'bilder/135-starligth.jpg', video:'https://malestudio.kristinoksavik.com/courses/134228-maleri-135-starligth', produktliste:'produktlister-lokal/produktliste-135-Starligth.pdf', tags:['A-Å','Oksalim','akrylspray','silkepapir','khadipapir','avismakulator'], kurs:'' },
+  { nr:'136', tittel:'Movement', bilde:'bilder/136-movement.jpg', video:'https://malestudio.kristinoksavik.com/courses/135494-maleri-136-movement', produktliste:'produktlister-lokal/produktliste-136-Movement.pdf', tags:['A-Å','krakelering','kaldvoks','silkepapir','khadipapir','avismakulator'], kurs:'' },
+  { nr:'138', tittel:'Into the Unknown', bilde:'bilder/138-into-the-unknown.jpg', video:'https://malestudio.kristinoksavik.com/courses/137232-maleri-138-into-the-unknown', produktliste:'produktlister-lokal/produktliste-138-Into-the-Unknown.pdf', tags:['A-Å','Akryl','kaldvoks','akrylspray','silkepapir','khadipapir','avismakulator'], kurs:'' },
+  ]
+};
+
+// ── render ──────────────────────────────────────────────
+var aktivtFilter = 'alle';
+var aktiveTags = [];
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function sett(id,v){var e=document.getElementById(id); if(e) e.textContent=v;}
+function settFilter(btn){
+  aktivtFilter=btn.getAttribute('data-f');
+  document.querySelectorAll('.filterknapp').forEach(function(b){b.classList.remove('aktiv');});
+  btn.classList.add('aktiv');
+  tegn();
+}
+
+function passer(m,q){
+  if(aktivtFilter==='nr' && !m.nr) return false;
+  if(aktivtFilter==='video' && !m.video) return false;
+  if(aktiveTags.length){
+    var mt=m.tags||[];
+    for(var i=0;i<aktiveTags.length;i++){ if(mt.indexOf(aktiveTags[i])===-1) return false; }
+  }
+  if(!q) return true;
+  var hay=((m.tittel||'')+' '+(m.nr||'')+' '+((m.tags||[]).join(' '))).toLowerCase();
+  return hay.indexOf(q)>-1;
+}
+
+function visBilde(src,tittel){
+  document.getElementById('lb-img').src=src;
+  document.getElementById('lb-tittel').textContent=tittel||'';
+  document.getElementById('lightbox').classList.add('apen');
+}
+function lukkBilde(){ document.getElementById('lightbox').classList.remove('apen'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') lukkBilde(); });
+
+function toggleFilterpanel(){
+  var p=document.getElementById('filterpanel');
+  var b=document.getElementById('filterknapp-toggle');
+  var apen=p.classList.toggle('apen');
+  b.classList.toggle('apen', apen);
+}
+function oppdaterFilterAnt(){
+  var e=document.getElementById('filter-ant');
+  if(e) e.textContent = aktiveTags.length ? '('+aktiveTags.length+')' : '';
+  var b=document.getElementById('filterknapp-toggle');
+  if(b) b.classList.toggle('harfilter', aktiveTags.length>0);
+}
+function toggleTag(t){
+  var i=aktiveTags.indexOf(t);
+  if(i>-1) aktiveTags.splice(i,1); else aktiveTags.push(t);
+  byggTaggfilter(); tegn();
+}
+function nullstillTagger(){ aktiveTags=[]; byggTaggfilter(); tegn(); }
+
+var KURSTYPER = ['A-Å','Teknikk trening','MINIKURS','Hovedkurs','ENG Kurs','Basis-info/Fakta','livesendinger','Marked','Inspirasjon'];
+var NIVAER = ['Nybegynner','LEVEL2','LEVEL3','Advanced'];
+
+function taggChip(t,teller){
+  var akt=aktiveTags.indexOf(t)>-1?' aktiv':'';
+  return '<button class="tf-tagg'+akt+'" onclick="toggleTag('+JSON.stringify(t).replace(/"/g,'&quot;')+')">'+esc(t)+' <span class="ant">'+teller[t]+'</span></button>';
+}
+
+function byggTaggfilter(){
+  var teller={};
+  TEKST.malerier.forEach(function(m){ (m.tags||[]).forEach(function(t){ teller[t]=(teller[t]||0)+1; }); });
+  var etterAntall=function(a,b){ return teller[b]-teller[a] || a.localeCompare(b,'no'); };
+  var alle=Object.keys(teller);
+
+  var kt=alle.filter(function(t){return KURSTYPER.indexOf(t)>-1;}).sort(etterAntall).map(function(t){return taggChip(t,teller);}).join('');
+  var niv=NIVAER.filter(function(t){return teller[t];}).map(function(t){return taggChip(t,teller);}).join('');
+  var tk=alle.filter(function(t){return KURSTYPER.indexOf(t)===-1 && NIVAER.indexOf(t)===-1;}).sort(etterAntall).map(function(t){return taggChip(t,teller);}).join('');
+  if(aktiveTags.length){
+    tk+='<button class="tf-nullstill" onclick="nullstillTagger()">Nullstill ('+aktiveTags.length+')</button>';
+  }
+  document.getElementById('kt-rad').innerHTML=kt;
+  document.getElementById('niv-rad').innerHTML=niv;
+  document.getElementById('tf-rad').innerHTML=tk;
+  oppdaterFilterAnt();
+}
+
+function lenke(url,ikon,tekst){
+  if(url) return '<a href="'+esc(url)+'" target="_blank" rel="noopener">'+ikon+' '+tekst+'</a>';
+  return '<a class="mangl">'+ikon+' '+tekst+'</a>';
+}
+
+function kortHtml(m){
+  var ph = '<div class="mangler"><span class="ikon">🖼️</span><small>Bilde mangler</small></div>';
+  var bilde = ph + (m.bilde ? '<img src="'+esc(m.bilde)+'" alt="'+esc(m.tittel)+'" loading="lazy" onerror="this.remove()" onclick="visBilde(this.src,this.alt)">' : '');
+  var nr = m.nr ? '<span class="nr">nr '+esc(m.nr)+'</span>' : '';
+  var tagger = (m.tags && m.tags.length)
+    ? '<div class="tagger">'+m.tags.map(function(t){return '<span class="t" onclick="toggleTag('+JSON.stringify(t).replace(/"/g,'&quot;')+')">'+esc(t)+'</span>';}).join('')+'</div>'
+    : '';
+  return '<article class="kort">'
+    + '<div class="bilde">'+bilde+nr+'</div>'
+    + '<div class="krop"><h3>'+esc(m.tittel)+'</h3></div>'
+    + tagger
+    + '<div class="lenker">'
+    +   lenke(m.produktliste,'📄','Produktliste')
+    +   lenke(m.video,'🎬','Video')
+    +   lenke(m.kurs,'🎓','Kurs')
+    + '</div></article>';
+}
+
+function tegn(){
+  var q=(document.getElementById('sok').value||'').trim().toLowerCase();
+  var liste=TEKST.malerier.filter(function(m){return passer(m,q);});
+  document.getElementById('rutenett').innerHTML=liste.map(kortHtml).join('');
+  document.getElementById('ingen').style.display = liste.length ? 'none':'block';
+  var medListe=TEKST.malerier.filter(function(m){return m.produktliste;}).length;
+  var tagtekst = aktiveTags.length ? ' · filtrert på '+aktiveTags.join(' + ') : '';
+  document.getElementById('teller').textContent =
+    liste.length+' av '+TEKST.malerier.length+' malerier · '+medListe+' med produktliste'+tagtekst;
+}
+
+// init
+sett('t-merke',TEKST.merke); sett('t-merke-under',TEKST.merkeUnder);
+sett('t-kick',TEKST.kick); sett('t-tittel',TEKST.tittel); sett('t-ingress',TEKST.ingress);
+sett('t-footer',TEKST.footer);
+byggTaggfilter();
+tegn();
+</script>
+</body>
+</html>
