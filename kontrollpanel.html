@@ -57,11 +57,20 @@
 <script>
   // === PASSORD (samme som bestillingspanelet). Byttes her: ===
   var PASSORD = 'fotomaleri2026';
+  // Ekstra kode til Eline — slett denne linja for a stenge henne ute.
+  var PASSORD_EKSTRA = 'ELINE2026';
+  // Godtar hovedpassordet eller den ekstra koden. Store/sma bokstaver spiller ingen rolle.
+  function cbaGodkjenn(tekst){
+    var t = String(tekst || '').trim().toUpperCase();
+    var liste = [PASSORD, PASSORD_EKSTRA].filter(Boolean).map(function(x){ return String(x).toUpperCase(); });
+    return liste.indexOf(t) !== -1;
+  }
+
   (function(){
     var laas=document.getElementById('laas');
     if(localStorage.getItem('panel-aapen')==='1'){ laas.style.display='none'; }
     function sjekk(){
-      if(document.getElementById('laasInput').value===PASSORD){
+      if(cbaGodkjenn(document.getElementById('laasInput').value)){
         localStorage.setItem('panel-aapen','1'); laas.style.display='none';
       } else { document.getElementById('laasFeil').style.display='block'; }
     }

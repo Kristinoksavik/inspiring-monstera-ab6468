@@ -120,10 +120,19 @@ input,textarea,select{font-family:inherit; font-size:14px}
 <script>
   // BYTT dette til ditt eget passord:
   var PANEL_PASSORD = 'fotomaleri2026';
+  // Ekstra kode til Eline — slett denne linja for a stenge henne ute.
+  var PANEL_PASSORD_EKSTRA = 'ELINE2026';
+  // Godtar hovedpassordet eller den ekstra koden. Store/sma bokstaver spiller ingen rolle.
+  function cbaGodkjenn(tekst){
+    var t = String(tekst || '').trim().toUpperCase();
+    var liste = [PANEL_PASSORD, PANEL_PASSORD_EKSTRA].filter(Boolean).map(function(x){ return String(x).toUpperCase(); });
+    return liste.indexOf(t) !== -1;
+  }
+
   (function(){
     if(localStorage.getItem('panel-aapen')==='1'){ document.getElementById('lasOverlay').style.display='none'; }
     function sjekk(){
-      if(document.getElementById('lasInput').value===PANEL_PASSORD){
+      if(cbaGodkjenn(document.getElementById('lasInput').value)){
         localStorage.setItem('panel-aapen','1');
         document.getElementById('lasOverlay').style.display='none';
       } else { document.getElementById('lasFeil').style.display='block'; }
