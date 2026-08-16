@@ -5033,8 +5033,12 @@ init();
         melding('Dette ser ikke ut som en sikkerhetskopi fra Fotomaleri. Velg fila som heter fotomaleri-sikkerhetskopi og slutter på .json', true);
         return;
       }
-      var nye = 0, fantes = 0;
+      var nye = 0, fantes = 0, oppdatert = 0;
       var b = butikker();
+      /* Nyeste utgave vinner. Har du jobbet videre paa telefonen og henter inn
+         en eldre kopi fra Mac-en, skal telefonens arbeid staa. Uten dette ville
+         en gammel fil kunne skrive over noe nyere uten at du merket det. */
+      var tid = function(x){ return (x && (x.updated || x.created)) || 0; };
       for(var i=0;i<b.length;i++){
         var rader = pakke[b[i][1]];
         if(!Array.isArray(rader)) continue;
@@ -5043,10 +5047,9 @@ init();
           if(!rad || !rad.id) continue;
           var gammel = null;
           try{ gammel = await dbGet(b[i][0], rad.id); }catch(e){}
-          /* Samme id betyr samme komposisjon. Da skrives den bare over med seg
-             selv, og den samme fila kan hentes inn saa mange ganger man vil. */
-          await dbPut(b[i][0], rad);
-          if(gammel) fantes++; else nye++;
+          if(!gammel){ await dbPut(b[i][0], rad); nye++; }
+          else if(tid(rad) > tid(gammel)){ await dbPut(b[i][0], rad); oppdatert++; }
+          else { fantes++; }
         }
       }
       /* Les alt inn igjen og tegn paa nytt, saa man ser resultatet med en gang */
@@ -5061,8 +5064,12 @@ init();
       try{ renderLibrary(); }catch(e){}
       try{ if(typeof renderPortraitLibrary === 'function') renderPortraitLibrary(); }catch(e){}
       try{ if(typeof updateDiaryShortcut === 'function') updateDiaryShortcut(); }catch(e){}
-      melding(nye
-        ? (nye + ' hentet inn. ' + (fantes ? fantes + ' lå der fra før og er urørt.' : 'Ingenting lå der fra før.'))
+      var deler = [];
+      if(nye) deler.push(nye + ' hentet inn');
+      if(oppdatert) deler.push(oppdatert + ' oppdatert til en nyere utgave');
+      if(fantes) deler.push(fantes + ' lå der fra før og er urørt');
+      melding(deler.length
+        ? (deler.join(', ') + '.')
         : 'Alt i denne fila lå der allerede. Ingenting er endret, og ingenting er blitt dobbelt.');
     }catch(e){
       melding('Kunne ikke lese fila: ' + (e && e.message ? e.message : 'ukjent feil'), true);
