@@ -869,6 +869,7 @@
       <button class="btn btn-secondary" id="skInnBtn" onclick="sikkerhetskopiHentInn()" title="Hent inn en sikkerhetskopi du har lagret før">📥 Hent inn kopi</button>
     </div>
     <p id="sk-sist" style="font-size:12px; color:#8a857b; text-align:center; margin:10px 0 0; line-height:1.5;"></p>
+    <p id="sk-hint" style="font-size:12px; color:#8a857b; text-align:center; margin:6px 0 0; line-height:1.5;">Skal du hente inn en kopi: fila heter <b>fotomaleri-sikkerhetskopi</b> og slutter på .json. På telefonen finner du den i Filer, under Nedlastinger.</p>
     <input type="file" id="sk-fil" accept="application/json,.json" hidden onchange="skLesFil(this)">
   </div>
 
@@ -894,7 +895,7 @@
       <button class="btn btn-primary" id="vm-edit" onclick="editCurrentItem()">✎ <span id="vm-edit-text">Rediger</span></button>
       <button class="btn btn-primary" id="vm-submit" onclick="openSubmitModal()">✉ <span id="vm-submit-text">Send inn til Kristin</span></button>
       <button class="btn btn-secondary" id="vm-download" onclick="downloadCurrentItem()">⬇ <span id="vm-download-text">Last ned</span></button>
-      <button class="btn btn-secondary" id="vm-prisliste" onclick="sendDagbokTilPrisliste()" title="Send bildet til Prislistehjelpen">🏷 Prislistehjelpen</button>
+      <button class="btn btn-secondary" id="vm-prisliste" onclick="sendDagbokTilPrisliste()" title="Send bildet til Markedshjelpen">🏷 Markedshjelpen</button>
       <button class="btn btn-danger" id="vm-delete" onclick="deleteCurrentItem()">× <span id="vm-delete-text">Slett</span></button>
     </div>
   </div>
@@ -1009,7 +1010,7 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       <button class="btn btn-primary" id="rm-share-btn" onclick="shareResult()" style="flex:1; min-width:140px;">📤 <span id="rm-share-label">Del / Lagre i Bilder</span></button>
       <button class="btn btn-secondary" id="rm-download-btn" onclick="downloadResult()" style="flex:1; min-width:140px;">⬇️ <span id="rm-download-label">Last ned fil</span></button>
-      <button class="btn btn-secondary" id="rm-prisliste-btn" onclick="sendResultatTilPrisliste()" style="flex:1; min-width:140px;" title="Send bildet til Prislistehjelpen">🏷 Prislistehjelpen</button>
+      <button class="btn btn-secondary" id="rm-prisliste-btn" onclick="sendResultatTilPrisliste()" style="flex:1; min-width:140px;" title="Send bildet til Markedshjelpen">🏷 Markedshjelpen</button>
     </div>
     <div id="rm-hint" style="font-size:11px; color:#999; margin-top:10px; text-align:center;"></div>
   </div>
@@ -4858,14 +4859,14 @@ init();
     });
   }
 </script>
-<!-- ═══════════ SEND TIL PRISLISTEHJELPEN ═══════════
-     Prislistehjelpen ligger paa en annen adresse og kan derfor ikke dele
+<!-- ═══════════ SEND TIL MARKEDSHJELPEN ═══════════
+     Markedshjelpen ligger paa en annen adresse og kan derfor ikke dele
      lagring med denne appen. I stedet aapnes den i en ny fane med #mottak
      bak adressen, den sier fra at den er klar, og da sendes bildet direkte
      over. Ingenting lagres underveis, og bare den ene adressen slipper til. -->
 <script>
 (function(){
-  var PRISLISTE = 'https://prislistehjelpen.netlify.app';
+  var PRISLISTE = 'https://markedshjelpen.malestudio.no';
 
   function melding(tekst, feil){
     var el = document.getElementById('pl-melding');
@@ -4887,7 +4888,7 @@ init();
     if(!dataUrl){ melding('Fant ikke bildet.', true); return; }
     var vindu = window.open(PRISLISTE + '/#mottak', '_blank');
     if(!vindu){
-      melding('Nettleseren stoppet den nye fanen. Tillat vinduer fra denne siden, eller last ned bildet og legg det inn i Prislistehjelpen selv.', true);
+      melding('Nettleseren stoppet den nye fanen. Tillat vinduer fra denne siden, eller last ned bildet og legg det inn i Markedshjelpen selv.', true);
       return;
     }
     var sendt = false;
@@ -4906,17 +4907,17 @@ init();
       }
       if(e.data.type === 'cba-mottatt'){
         window.removeEventListener('message', paaSvar);
-        melding('Bildet ligger nå i Prislistehjelpen. Fyll inn høyde og bredde der.');
+        melding('Bildet ligger nå i Markedshjelpen. Fyll inn høyde og bredde der.');
       }
     }
 
     window.addEventListener('message', paaSvar);
-    melding('Åpner Prislistehjelpen …');
+    melding('Åpner Markedshjelpen …');
 
     setTimeout(function(){
       if(sendt) return;
       window.removeEventListener('message', paaSvar);
-      melding('Fikk ikke kontakt med Prislistehjelpen. Last ned bildet her og legg det inn der på vanlig måte.', true);
+      melding('Fikk ikke kontakt med Markedshjelpen. Last ned bildet her og legg det inn der på vanlig måte.', true);
     }, 20000);
   }
 
@@ -4984,8 +4985,11 @@ init();
     if(!p) return;
     var s = null;
     try{ s = localStorage.getItem(SIST); }catch(e){}
-    p.textContent = s
-      ? ('Siste sikkerhetskopi: ' + s + '. Den nyeste fila er den som gjelder — eldre kopier kan du slette.')
+    /* Hele filnavnet, ikke bare datoen. Da slipper man aa lete seg fram i
+       filoversikten paa telefonen — man vet noeyaktig hva man ser etter. */
+    p.innerHTML = s
+      ? ('Siste sikkerhetskopi: <b>fotomaleri-sikkerhetskopi-' + s + '.json</b><br>'
+         + 'Den ligger der nedlastinger havner. Den nyeste fila er den som gjelder — eldre kopier kan du slette.')
       : 'Du har ikke tatt sikkerhetskopi ennå. Da finnes dagboken bare her, i denne nettleseren.';
   }
   window.skVisSist = visSist;
