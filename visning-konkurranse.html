@@ -57,14 +57,19 @@
   .scene .navnelinje{text-align:center; padding:0 20px 26px}
   .scene .navnelinje .n{font-size:26px; color:#f0ece2; letter-spacing:.02em}
   .scene .navnelinje .teller{font-size:13px; color:#7a7568; margin-top:6px; font-family:-apple-system,sans-serif}
-  .scene .pil{position:absolute; top:0; bottom:0; width:90px; display:flex; align-items:center; justify-content:center;
-    font-size:34px; color:#555; cursor:pointer; user-select:none; background:none; border:none; font-family:inherit}
-  .scene .pil:hover{color:var(--gull)}
-  .scene .pil.venstre{left:0}
-  .scene .pil.hoyre{right:0}
-  .scene .lukk{position:absolute; top:14px; right:18px; font-size:22px; color:#666; background:none; border:none;
-    cursor:pointer; padding:8px 12px; font-family:inherit}
-  .scene .lukk:hover{color:var(--lys)}
+  .scene .pil{position:absolute; top:50%; transform:translateY(-50%); width:58px; height:58px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:30px; color:#e8e4da; cursor:pointer;
+    user-select:none; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.22); font-family:inherit; z-index:5}
+  .scene .pil:hover{background:var(--gull); border-color:var(--gull); color:#fff}
+  .scene .pil.venstre{left:22px}
+  .scene .pil.hoyre{right:22px}
+  .scene .lukk{position:absolute; top:16px; right:20px; font-size:15px; color:#e8e4da; background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.22); border-radius:9px; cursor:pointer; padding:10px 16px; font-family:inherit; z-index:5}
+  .scene .lukk:hover{background:var(--gull); border-color:var(--gull); color:#fff}
+  .scene .knapperad{display:flex; gap:10px; justify-content:center; margin-top:14px}
+  .scene .knapperad button{background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.22); color:#e8e4da;
+    border-radius:9px; padding:11px 20px; font-size:15px; font-family:inherit; cursor:pointer}
+  .scene .knapperad button:hover{background:var(--gull); border-color:var(--gull); color:#fff}
 </style>
 </head>
 <body>
@@ -84,13 +89,18 @@
 <div id="innhold"><div class="melding"><div class="spinner"></div>Henter bidrag …</div></div>
 
 <div class="scene" id="scene">
-  <button class="lukk" onclick="lukkScene()" title="Tilbake til oversikten">✕</button>
+  <button class="lukk" onclick="lukkScene()" title="Tilbake til oversikten">✕ Tilbake til oversikten</button>
   <button class="pil venstre" onclick="bla(-1)" title="Forrige">‹</button>
   <div class="flate" onclick="bla(1)"><img id="scene-bilde" src="" alt=""></div>
   <button class="pil hoyre" onclick="bla(1)" title="Neste">›</button>
   <div class="navnelinje">
     <div class="n" id="scene-navn"></div>
     <div class="teller" id="scene-teller"></div>
+    <div class="knapperad">
+      <button onclick="bla(-1)">‹ Forrige</button>
+      <button onclick="lukkScene()">Oversikten</button>
+      <button onclick="bla(1)">Neste ›</button>
+    </div>
   </div>
 </div>
 
