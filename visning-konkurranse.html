@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fotomaleri-konkurransen — visning</title>
+<style>
+  :root{--gull:#c4944a; --morkt:#111; --lys:#f5f5f3}
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{font-family:Georgia,serif; background:var(--morkt); color:var(--lys)}
+
+  /* ---------- Topplinje ---------- */
+  .topp{display:flex; align-items:center; gap:14px; padding:14px 22px; border-bottom:1px solid #2a2a2a}
+  .topp h1{font-size:19px; font-weight:normal; letter-spacing:.02em}
+  .topp .antall{color:#9a9488; font-size:13.5px; font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+  .topp .hoyre{margin-left:auto; display:flex; gap:10px; align-items:center}
+  .topp select{background:#1d1d1d; color:var(--lys); border:1px solid #333; border-radius:7px;
+    padding:6px 10px; font-size:13px; font-family:inherit}
+  .topp button{background:#1d1d1d; color:var(--lys); border:1px solid #333; border-radius:7px;
+    padding:6px 12px; font-size:13px; font-family:inherit; cursor:pointer}
+  .topp button:hover{border-color:var(--gull); color:var(--gull)}
+
+  /* ---------- Oversikt (rutenett) ---------- */
+  .rutenett{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px; padding:22px}
+  .kort{cursor:pointer; background:#181818; border:1px solid #262626; border-radius:12px; overflow:hidden;
+    transition:transform .12s, border-color .12s}
+  .kort:hover{transform:translateY(-3px); border-color:var(--gull)}
+  .kort .bilde{aspect-ratio:1; background:#0c0c0c; display:flex; align-items:center; justify-content:center}
+  .kort .bilde img{width:100%; height:100%; object-fit:cover; display:block}
+  .kort .navn{padding:11px 14px; font-size:15.5px; text-align:center; color:#e8e4da;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+  /* ---------- Melding ---------- */
+  .melding{max-width:520px; margin:80px auto; text-align:center; color:#b5b0a6; font-size:15px; line-height:1.7; padding:0 20px}
+  .melding b{color:var(--lys)}
+  .spinner{width:34px; height:34px; border:3px solid #333; border-top-color:var(--gull); border-radius:50%;
+    margin:0 auto 18px; animation:snurr .8s linear infinite}
+  @keyframes snurr{to{transform:rotate(360deg)}}
+
+  /* ---------- Oppsett (kun hvis adressen mangler) ---------- */
+  .oppsett{max-width:460px; margin:70px auto; background:#181818; border:1px solid #2a2a2a; border-radius:14px; padding:26px}
+  .oppsett h2{font-size:18px; font-weight:normal; margin-bottom:6px}
+  .oppsett p{font-size:13px; color:#9a9488; margin-bottom:16px; line-height:1.6; font-family:-apple-system,sans-serif}
+  .oppsett label{display:block; font-size:12.5px; color:#b5b0a6; margin:12px 0 4px; font-family:-apple-system,sans-serif}
+  .oppsett input{width:100%; background:#0f0f0f; border:1px solid #333; color:var(--lys); border-radius:8px;
+    padding:10px 12px; font-size:14px; font-family:-apple-system,sans-serif}
+  .oppsett button{margin-top:18px; width:100%; background:var(--gull); border:none; color:#fff; font-family:inherit;
+    font-size:15px; padding:12px; border-radius:9px; cursor:pointer}
+
+  /* ---------- Fullskjermsvisning ---------- */
+  .scene{position:fixed; inset:0; background:var(--morkt); display:none; flex-direction:column; z-index:50}
+  .scene.pa{display:flex}
+  .scene .flate{flex:1; display:flex; align-items:center; justify-content:center; min-height:0; padding:26px 70px; cursor:pointer}
+  .scene .flate img{max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;
+    box-shadow:0 14px 60px rgba(0,0,0,.6)}
+  .scene .navnelinje{text-align:center; padding:0 20px 26px}
+  .scene .navnelinje .n{font-size:26px; color:#f0ece2; letter-spacing:.02em}
+  .scene .navnelinje .teller{font-size:13px; color:#7a7568; margin-top:6px; font-family:-apple-system,sans-serif}
+  .scene .pil{position:absolute; top:0; bottom:0; width:90px; display:flex; align-items:center; justify-content:center;
+    font-size:34px; color:#555; cursor:pointer; user-select:none; background:none; border:none; font-family:inherit}
+  .scene .pil:hover{color:var(--gull)}
+  .scene .pil.venstre{left:0}
+  .scene .pil.hoyre{right:0}
+  .scene .lukk{position:absolute; top:14px; right:18px; font-size:22px; color:#666; background:none; border:none;
+    cursor:pointer; padding:8px 12px; font-family:inherit}
+  .scene .lukk:hover{color:var(--lys)}
+</style>
+</head>
+<body>
+
+<div class="topp">
+  <h1>Fotomaleri-konkurransen</h1>
+  <span class="antall" id="antall"></span>
+  <div class="hoyre">
+    <select id="niva" onchange="tegn()">
+      <option value="10" selected>10 stjerner</option>
+      <option value="9">9–10 stjerner</option>
+    </select>
+    <button onclick="hentAlt()">↻ Hent på nytt</button>
+  </div>
+</div>
+
+<div id="innhold"><div class="melding"><div class="spinner"></div>Henter bidrag …</div></div>
+
+<div class="scene" id="scene">
+  <button class="lukk" onclick="lukkScene()" title="Tilbake til oversikten">✕</button>
+  <button class="pil venstre" onclick="bla(-1)" title="Forrige">‹</button>
+  <div class="flate" onclick="bla(1)"><img id="scene-bilde" src="" alt=""></div>
+  <button class="pil hoyre" onclick="bla(1)" title="Neste">›</button>
+  <div class="navnelinje">
+    <div class="n" id="scene-navn"></div>
+    <div class="teller" id="scene-teller"></div>
+  </div>
+</div>
+
+<script>
+// Leser samme oppsett og de samme vurderingene som konkurranse-adminen.
+// Åpnes derfor fra SAMME STED og i SAMME NETTLESER som admin.
+var KONF = {};
+try{ KONF = JSON.parse(localStorage.getItem('cba-konk-konf')||'{}'); }catch(e){}
+
+var BIDRAG = [];        // fra Netlify-funksjonen
+var VURDERING = {};     // id -> {rang, ...} fra IndexedDB
+var LISTE = [];         // det som vises nå
+var idx = 0;
+
+// ---------- IndexedDB (samme base som admin) ----------
+function åpneDb(){
+  return new Promise(function(res){
+    var r = indexedDB.open('fotomaler-konkurranse', 1);
+    r.onupgradeneeded = function(e){
+      var d = e.target.result;
+      if(!d.objectStoreNames.contains('vurdering')) d.createObjectStore('vurdering',{keyPath:'id'});
+    };
+    r.onsuccess = function(e){ res(e.target.result); };
+    r.onerror = function(){ res(null); };
+  });
+}
+function lesVurderinger(db){
+  return new Promise(function(res){
+    if(!db){ res(); return; }
+    try{
+      var tx = db.transaction('vurdering','readonly');
+      var q = tx.objectStore('vurdering').getAll();
+      q.onsuccess = function(){
+        (q.result||[]).forEach(function(v){ VURDERING[v.id] = v; });
+        res();
+      };
+      q.onerror = function(){ res(); };
+    }catch(e){ res(); }
+  });
+}
+
+// ---------- Henting ----------
+async function hentAlt(){
+  var inn = document.getElementById('innhold');
+  if(!KONF.url){ visOppsett(); return; }
+  inn.innerHTML = '<div class="melding"><div class="spinner"></div>Henter bidrag …</div>';
+  try{
+    var db = await åpneDb();
+    await lesVurderinger(db);
+    var res = await fetch(KONF.url, { headers: { 'X-Admin-Kode': KONF.kode||'' } });
+    if(!res.ok){
+      var t = await res.json().catch(function(){ return {error:'Ukjent feil'}; });
+      throw new Error(t.error || ('Tjenesten svarte ' + res.status));
+    }
+    var data = await res.json();
+    BIDRAG = data.bidrag || [];
+    tegn();
+  }catch(e){
+    inn.innerHTML = '<div class="melding"><b>Fikk ikke hentet bidragene.</b><br>' +
+      escapeHtml(String(e.message||e)) +
+      '<br><br>Sjekk at du åpner denne siden fra samme sted som admin-panelet, og at nettet er på.</div>';
+  }
+}
+
+// ---------- Tegning ----------
+function tegn(){
+  var grense = parseInt(document.getElementById('niva').value, 10);
+  LISTE = BIDRAG.filter(function(b){
+    var v = VURDERING[b.id];
+    return v && !v.skjult && typeof v.rang === 'number' && v.rang >= grense;
+  });
+  // Høyeste først, deretter navn
+  LISTE.sort(function(a,b){
+    var d = (VURDERING[b.id].rang||0) - (VURDERING[a.id].rang||0);
+    return d !== 0 ? d : (a.navn||'').localeCompare(b.navn||'','no');
+  });
+  document.getElementById('antall').textContent = LISTE.length ? (LISTE.length + ' bidrag') : '';
+  var inn = document.getElementById('innhold');
+  if(!LISTE.length){
+    var harVurderinger = Object.keys(VURDERING).length > 0;
+    inn.innerHTML = '<div class="melding">' + (harVurderinger
+      ? 'Ingen bidrag med så høy vurdering ennå. Prøv «9–10 stjerner» øverst til høyre.'
+      : '<b>Fant ingen vurderinger her.</b><br>Åpne denne siden fra <b>samme sted og i samme nettleser</b> som konkurranse-adminen der du satte stjernene — det er der de er lagret.') +
+      '</div>';
+    return;
+  }
+  inn.innerHTML = '<div class="rutenett">' + LISTE.map(function(b,i){
+    var bilde = b.bildeUrl
+      ? '<img src="' + escapeHtml(b.bildeUrl) + '" alt="" loading="lazy">'
+      : '<span style="color:#555;font-size:13px">Bilde mangler</span>';
+    return '<div class="kort" onclick="visScene(' + i + ')">' +
+      '<div class="bilde">' + bilde + '</div>' +
+      '<div class="navn">' + escapeHtml(b.navn || 'Uten navn') + '</div></div>';
+  }).join('') + '</div>';
+}
+
+// ---------- Fullskjerm ----------
+function visScene(i){
+  idx = i;
+  oppdaterScene();
+  document.getElementById('scene').classList.add('pa');
+}
+function oppdaterScene(){
+  var b = LISTE[idx];
+  if(!b) return;
+  document.getElementById('scene-bilde').src = b.bildeUrl || '';
+  document.getElementById('scene-navn').textContent = b.navn || 'Uten navn';
+  document.getElementById('scene-teller').textContent = (idx+1) + ' av ' + LISTE.length;
+  // Forhåndslast neste bilde så byttet går glatt i sendingen
+  var neste = LISTE[(idx+1) % LISTE.length];
+  if(neste && neste.bildeUrl){ (new Image()).src = neste.bildeUrl; }
+}
+function bla(retning){
+  if(!LISTE.length) return;
+  idx = (idx + retning + LISTE.length) % LISTE.length;
+  oppdaterScene();
+}
+function lukkScene(){ document.getElementById('scene').classList.remove('pa'); }
+
+document.addEventListener('keydown', function(e){
+  var pa = document.getElementById('scene').classList.contains('pa');
+  if(!pa) return;
+  if(e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); bla(1); }
+  else if(e.key === 'ArrowLeft') { e.preventDefault(); bla(-1); }
+  else if(e.key === 'Escape') lukkScene();
+});
+
+// ---------- Oppsett (fallback hvis adressen mangler her) ----------
+function visOppsett(){
+  document.getElementById('innhold').innerHTML =
+    '<div class="oppsett"><h2>Koble til bidragene</h2>' +
+    '<p>Denne siden bruker samme oppsett som konkurranse-adminen. Åpner du den fra samme sted som admin, skjer dette automatisk. Ellers kan du fylle inn her (lagres bare i denne nettleseren):</p>' +
+    '<label>Adresse til Netlify-funksjonen</label>' +
+    '<input id="o-url" placeholder="https://…netlify.app/.netlify/functions/bidrag" value="' + escapeHtml(KONF.url||'') + '">' +
+    '<label>Adminkode</label>' +
+    '<input id="o-kode" type="password" value="' + escapeHtml(KONF.kode||'') + '">' +
+    '<button onclick="lagreOppsett()">Lagre og hent bidrag</button></div>';
+}
+function lagreOppsett(){
+  KONF.url = document.getElementById('o-url').value.trim();
+  KONF.kode = document.getElementById('o-kode').value;
+  try{ localStorage.setItem('cba-konk-konf', JSON.stringify(KONF)); }catch(e){}
+  hentAlt();
+}
+
+function escapeHtml(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+hentAlt();
+</script>
+</body>
+</html>
