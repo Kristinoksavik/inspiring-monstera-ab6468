@@ -637,15 +637,16 @@
       <button class="btn btn-secondary" id="bgRotateBtn" onclick="rotateBackground()" style="font-size:13px;">⟳ <span id="s1-rotate">Roter bakgrunn 90°</span></button>
     </div>
 
-    <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
-    <p class="step-sub" id="s1-lib-sub">Tap på en bakgrunn for å velge den.</p>
-    <div class="library-grid" id="bgLibrary"></div>
-
     <div class="nav-row">
       <button class="btn btn-secondary hidden" id="s1-diary-shortcut" onclick="gotoStep(6)">📔 <span id="s1-diary-text">Se dagbok</span></button>
       <button class="btn btn-secondary" id="s1-skipbg" onclick="skipBg()" style="font-size:13px;">Fortsett uten bakgrunn →</button>
       <button class="btn btn-primary" id="s1-next" onclick="gotoStep(2)" disabled>Neste →</button>
     </div>
+
+    <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
+    <p class="step-sub" id="s1-lib-sub">Tap på en bakgrunn for å velge den.</p>
+    <div class="library-grid" id="bgLibrary"></div>
+
   </div>
 
   <!-- ═══════════ STEP 2: PORTRAIT ═══════════ -->
@@ -2104,7 +2105,7 @@ async function renderLibrary() {
         deleteBackground(bg.id);
         e.stopPropagation();
       } else {
-        selectBackground(bg.id);
+        selectBackground(bg.id, true);
       }
     };
     grid.appendChild(div);
@@ -2185,7 +2186,7 @@ function rotateBackground() {
   wrap.addEventListener('pointercancel', end);
 })();
 
-function selectBackground(id) {
+function selectBackground(id, visFram) {
   const bg = state.bgLibrary.find(b => b.id === id);
   if (!bg) return;
   state.selectedBg = bg.dataUrl;
@@ -2195,6 +2196,19 @@ function selectBackground(id) {
   state.bgRotation = 0;
   document.getElementById('s1-next').disabled = false;
   renderLibrary();
+  /* Har hun nettopp valgt eller lastet opp en bakgrunn, skal hun FAA SE den.
+     Foer skjedde alt langt nede paa siden, utenfor skjermen — man lastet opp
+     og trodde ingenting hadde hendt. Naa ruller siden til forhaandsvisningen,
+     og «Neste» staar rett under. Ikke ved gjenoppretting av forrige oekt. */
+  if (visFram) {
+    setTimeout(function(){
+      const boks = document.getElementById('bgPreview');
+      if (boks && !boks.classList.contains('hidden')) {
+        try { boks.scrollIntoView({ behavior:'smooth', block:'center' }); }
+        catch (e) { boks.scrollIntoView(); }
+      }
+    }, 60);
+  }
   scheduleSaveWorkingState();
 }
 
@@ -2251,7 +2265,7 @@ document.getElementById('bgUpload').addEventListener('change', async (e) => {
     created: Date.now()
   };
   state.bgLibrary.unshift(item);
-  selectBackground(item.id);
+  selectBackground(item.id, true);
   // 3) Try to persist to IndexedDB. Often blocked when running from file://,
   //    so a failure here is non-fatal — the image still works this session.
   try {
@@ -4755,7 +4769,12 @@ async function exportAllAsPdf() {
     da: 'Hvad vil du kalde dagbogen? (lad stå tomt for kun «Fotomaleri»)',
     en: 'What would you like to call the diary? (leave blank for just “Fotomaleri”)'
   };
-  const coverTitle = (prompt(titlePrompts[lang] || titlePrompts.no, '') || '').trim();
+  /* Trykker hun Avbryt her, skal ingenting skje. Foer sto det (prompt(...) || '')
+     — og da ble Avbryt lest som «tom tittel», saa eksporten gikk videre og
+     aapnet vinduet likevel. */
+  const svarTittel = prompt(titlePrompts[lang] || titlePrompts.no, '');
+  if (svarTittel === null) return;
+  const coverTitle = svarTittel.trim();
   // Open the window up-front (synchronously) so the popup blocker treats it as
   // a user gesture. If it's still null, the popup was blocked.
   const w = window.open('', '_blank');
@@ -4763,6 +4782,18 @@ async function exportAllAsPdf() {
     alert(UI[lang].s5.pdfBlocked || 'Tillat popup-vinduer for å eksportere PDF.');
     return;
   }
+
+  /* Vinduet lukker seg selv naar utskriften er ferdig ELLER avbrutt. Skulle
+     nettleseren ikke si fra, staar denne raden igjen som en synlig vei ut —
+     den skrives ikke ut. */
+  const lukkTekster = {
+    no: ['Utskriften er klar. Er du ferdig, kan du lukke dette vinduet.', 'Lukk vinduet'],
+    sv: ['Utskriften är klar. Är du klar kan du stänga fönstret.', 'Stäng fönstret'],
+    da: ['Udskriften er klar. Er du færdig, kan du lukke vinduet.', 'Luk vinduet'],
+    en: ['The printout is ready. You can close this window when you are done.', 'Close window']
+  };
+  const lukkTekst = (lukkTekster[lang] || lukkTekster.no)[0];
+  const lukkKnapp = (lukkTekster[lang] || lukkTekster.no)[1];
 
   const dateStr = new Date().toLocaleDateString(lang === 'no' ? 'nb-NO' : lang);
   const parts = [];
@@ -4775,7 +4806,11 @@ async function exportAllAsPdf() {
     '.page img{max-width:100%;max-height:18cm;border:1px solid #eee}' +
     '.page .cap{font-size:13px;color:#666;margin-top:14px}' +
     '.page .ttl{font-size:18px;margin-top:8px}' +
+    '.lukkrad{position:fixed;top:0;left:0;right:0;text-align:center;padding:10px;background:#f5f5f3;border-bottom:1px solid #e0dacd;font-family:sans-serif;font-size:14px}' +
+    '.lukkrad button{font:inherit;padding:7px 16px;margin-left:10px;border:1px solid #c9bfa9;border-radius:8px;background:#fff;cursor:pointer}' +
+    '@media print{.lukkrad{display:none}}' +
     '</style></head><body>' +
+    '<div class="lukkrad">' + escapeHtml(lukkTekst) + '<button onclick="window.close()">' + escapeHtml(lukkKnapp) + '</button></div>' +
     '<div class="cover"><h1>' + (coverTitle ? escapeHtml(coverTitle) : 'Fotomaleri') + '</h1>' +
       '<p>' + (coverTitle ? 'Fotomaleri<br>' : '') + dateStr + '</p></div>');
 
@@ -4790,7 +4825,10 @@ async function exportAllAsPdf() {
   parts.push('<script>window.onload=function(){' +
     'var imgs=[].slice.call(document.images);' +
     'Promise.all(imgs.map(function(i){return i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;});}))' +
-    '.then(function(){setTimeout(function(){window.print();},200);});' +
+    '.then(function(){setTimeout(function(){' +
+      'window.onafterprint=function(){try{window.close();}catch(e){}};' +
+      'window.print();' +
+    '},200);});' +
     '};<\/script></body></html>');
 
   try {
