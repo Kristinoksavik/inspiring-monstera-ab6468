@@ -128,11 +128,22 @@
     display:grid; grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));
     gap:10px; margin-top:1rem;
   }
-  /* Bakgrunns-biblioteket: fast område som scroller internt når det blir mange */
+  /* Bakgrunns-biblioteket. Paa telefon ligger bakgrunnene under hverandre og
+     boksen har INGEN egen scroll — en scroll inni en scroll er umulig aa
+     treffe paa iPhone, og med mange bakgrunner saa det ut som ingenting var
+     der. Paa stoerre skjermer beholdes den kompakte, scrollende boksen. */
   #bgLibrary {
-    max-height:360px; overflow-y:auto;
     padding:6px; border:1px solid #e6ddc9; border-radius:12px;
-    background:#faf9f6; -webkit-overflow-scrolling:touch;
+    background:#faf9f6;
+  }
+  @media (min-width: 601px) {
+    #bgLibrary { max-height:420px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  }
+  @media (max-width: 600px) {
+    #bgLibrary .library-grid, #bgLibrary { }
+    .library-grid { grid-template-columns:1fr !important; gap:18px !important; justify-items:center; }
+    #bgLibrary .lib-thumb { width:100%; max-width:250px; }
+    #bgLibrary .lib-thumb .del { width:32px; height:32px; font-size:19px; top:6px; right:6px; }
   }
   #bgLibrary::-webkit-scrollbar { width:8px; }
   #bgLibrary::-webkit-scrollbar-thumb { background:#d8cfb8; border-radius:8px; }
@@ -646,6 +657,7 @@
     <h2 style="margin-top:1.5rem" id="s1-lib-title">Mitt bibliotek</h2>
     <p class="step-sub" id="s1-lib-sub">Tap på en bakgrunn for å velge den.</p>
     <div class="library-grid" id="bgLibrary"></div>
+    <div id="bgLibMore" style="text-align:center; margin-top:12px;"></div>
 
   </div>
 
@@ -870,12 +882,12 @@
       <button class="btn btn-secondary" id="skInnBtn" onclick="sikkerhetskopiHentInn()" title="Hent inn en sikkerhetskopi du har lagret før">📥 Hent inn kopi</button>
     </div>
     <p id="sk-sist" style="font-size:12px; color:#8a857b; text-align:center; margin:10px 0 0; line-height:1.5;"></p>
-    <p id="sk-hint" style="font-size:12px; color:#8a857b; text-align:center; margin:6px 0 0; line-height:1.5;">Skal du hente inn en kopi: fila heter <b>fotomaleri-sikkerhetskopi</b> og slutter på .json. På telefonen finner du den i Filer, under Nedlastinger.</p>
+    <p id="sk-hint" style="font-size:12px; color:#8a857b; text-align:center; margin:6px 0 0; line-height:1.5;">Skal du hente inn en kopi: fila heter <b>fotomaleri-sikkerhetskopi</b> og slutter på .json. På iPhone og iPad ligger den i <b>Filer</b>, der du valgte å lagre den. På PC og Mac i mappa for nedlastinger.</p>
     <input type="file" id="sk-fil" accept="application/json,.json" hidden onchange="skLesFil(this)">
   </div>
 
   <div class="cba-watermark">
-    Creative Business Academy · Fotomaleri v4.2<br>
+    Creative Business Academy · Fotomaleri v4.3<br>
     <a href="https://www.fotomalerier.no" target="_blank" rel="noopener" style="color:#888; text-decoration:none;">www.fotomalerier.no</a><br>
     <span style="font-size:10px; color:#ccc;">© 2026 Creative Business Academy · All rights reserved</span>
   </div>
@@ -2088,15 +2100,36 @@ function loadImage(src) {
 // ═══════════════════════════════════════════════════════════════════════════
 // STEP 1: BACKGROUND LIBRARY
 // ═══════════════════════════════════════════════════════════════════════════
+/* Med mange bakgrunner vises de seks nyeste foerst, og resten bak en knapp.
+   Aarsak: paa telefon ble listen saa lang at alt annet paa steget forsvant. */
+let _libVisAlle = false;
+const LIB_START = 6;
+const LIB_TEKST = {
+  no: { alle:'Vis alle', faerre:'Vis færre', enhet:'bakgrunner' },
+  sv: { alle:'Visa alla', faerre:'Visa färre', enhet:'bakgrunder' },
+  da: { alle:'Vis alle', faerre:'Vis færre', enhet:'baggrunde' },
+  en: { alle:'Show all', faerre:'Show fewer', enhet:'backgrounds' }
+};
 async function renderLibrary() {
   const grid = document.getElementById('bgLibrary');
+  const merRad = document.getElementById('bgLibMore');
   grid.innerHTML = '';
+  if (merRad) merRad.innerHTML = '';
   if (state.bgLibrary.length === 0) {
     grid.innerHTML = '<div class="lib-empty">' + UI[lang].s1.libEmpty + '</div>';
     updateBgPreview();
     return;
   }
-  state.bgLibrary.forEach(bg => {
+  let liste = state.bgLibrary;
+  if (!_libVisAlle && liste.length > LIB_START) {
+    liste = liste.slice(0, LIB_START);
+    /* Den valgte bakgrunnen skal alltid vaere synlig, ogsaa om den er gammel. */
+    if (state.selectedBgId && !liste.some(b => b.id === state.selectedBgId)) {
+      const valgt = state.bgLibrary.find(b => b.id === state.selectedBgId);
+      if (valgt) liste = [valgt].concat(liste.slice(0, LIB_START - 1));
+    }
+  }
+  liste.forEach(bg => {
     const div = document.createElement('div');
     div.className = 'lib-thumb' + (bg.id === state.selectedBgId ? ' selected' : '');
     div.innerHTML = '<img src="' + bg.dataUrl + '" alt=""><button class="del" title="">×</button>';
@@ -2110,6 +2143,17 @@ async function renderLibrary() {
     };
     grid.appendChild(div);
   });
+  if (merRad && state.bgLibrary.length > LIB_START) {
+    const T = LIB_TEKST[lang] || LIB_TEKST.no;
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.style.fontSize = '13px';
+    b.textContent = _libVisAlle
+      ? T.faerre
+      : (T.alle + ' ' + state.bgLibrary.length + ' ' + T.enhet + ' ↓');
+    b.onclick = () => { _libVisAlle = !_libVisAlle; renderLibrary(); };
+    merRad.appendChild(b);
+  }
   updateBgPreview();
 }
 
@@ -4117,6 +4161,45 @@ function closeResultModal() {
   _resultData = null;
 }
 
+/* ── Lagring av filer, ogsaa paa iPad ──────────────────────────────────────
+   iPad og iPhone stoetter ikke «last ned»-lenker slik en PC gjoer. Trykket
+   man «Last ned», forlot nettleseren appen og aapnet fila i stedet — og
+   eleven satt igjen uten vei tilbake til arbeidet sitt. Paa Apple gaar det
+   naa via delings-arket («Lagre bilde», «Lagre i Filer»), som lar appen bli
+   staaende. Paa PC og Mac lastes fila ned akkurat som foer. */
+function erApple() {
+  try {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  } catch (e) { return false; }
+}
+async function lagreFil(blob, fname) {
+  if (erApple()) {
+    try {
+      if (navigator.canShare && typeof File === 'function') {
+        const fil = new File([blob], fname, { type: blob.type || 'application/octet-stream' });
+        if (navigator.canShare({ files: [fil] })) {
+          await navigator.share({ files: [fil], title: fname });
+          return 'delt';
+        }
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return 'avbrutt';
+    }
+    const u = URL.createObjectURL(blob);
+    const w = window.open(u, '_blank');
+    setTimeout(() => URL.revokeObjectURL(u), 20000);
+    if (w) return 'ny-fane';
+    URL.revokeObjectURL(u);
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 20000);
+  return 'lastet';
+}
+
 async function shareResult() {
   if (!_resultData) return;
   try {
@@ -4129,16 +4212,10 @@ async function shareResult() {
   }
 }
 
-function downloadResult() {
+async function downloadResult() {
   if (!_resultData) return;
   try {
-    const blob = dataURLtoBlob(_resultData.dataUrl);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = _resultData.fname;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    await lagreFil(dataURLtoBlob(_resultData.dataUrl), _resultData.fname);
   } catch (e) {
     console.error('Nedlasting feilet:', e);
     const w = window.open('', '_blank');
@@ -5025,12 +5102,84 @@ init();
     try{ s = localStorage.getItem(SIST); }catch(e){}
     /* Hele filnavnet, ikke bare datoen. Da slipper man aa lete seg fram i
        filoversikten paa telefonen — man vet noeyaktig hva man ser etter. */
+    var hvor = (typeof erApple === 'function' && erApple())
+      ? 'Den ligger der du valgte å lagre den — åpne <b>Filer</b> og se etter navnet.'
+      : 'Den ligger der nedlastinger havner.';
     p.innerHTML = s
       ? ('Siste sikkerhetskopi: <b>fotomaleri-sikkerhetskopi-' + s + '.json</b><br>'
-         + 'Den ligger der nedlastinger havner. Den nyeste fila er den som gjelder — eldre kopier kan du slette.')
+         + hvor + ' Den nyeste fila er den som gjelder — eldre kopier kan du slette.')
       : 'Du har ikke tatt sikkerhetskopi ennå. Da finnes dagboken bare her, i denne nettleseren.';
   }
   window.skVisSist = visSist;
+
+  /* Lagring av kopien paa iPhone og iPad.
+     Problemet som ble fikset: delings-arket i iOS krever at det aapnes rett
+     etter et trykk. Her maa dagboken hentes ut av databasen foerst, og den
+     ventingen gjorde at trykket «gikk ut paa dato» — arket kom aldri opp, og
+     ingen fil ble lagret noe sted. Loesningen er to steg: appen lager fila,
+     og saa trykker eleven én gang til paa en knapp som lagrer den. */
+  function skDelFil(blob, navn){
+    return (async function(){
+      try{
+        if(navigator.canShare && typeof File === 'function'){
+          var f = new File([blob], navn, {type:'application/json'});
+          /* Noen iOS-versjoner avviser JSON i delings-arket. Da sendes samme
+             fil som ren tekst — filnavnet og innholdet er uendret. */
+          if(!navigator.canShare({files:[f]})) f = new File([blob], navn, {type:'text/plain'});
+          if(navigator.canShare({files:[f]})){
+            await navigator.share({files:[f], title:navn});
+            return 'delt';
+          }
+        }
+      }catch(e){
+        if(e && e.name === 'AbortError') return 'avbrutt';
+      }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = navn;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} }, 20000);
+      return 'lastet';
+    })();
+  }
+
+  function skVisLagreknapp(blob, navn, antall, mbTekst){
+    var vert = document.getElementById('sk-hint');
+    if(!vert) return;
+    var boks = document.getElementById('sk-klar');
+    if(boks) boks.remove();
+    boks = document.createElement('div');
+    boks.id = 'sk-klar';
+    boks.style.cssText = 'margin:14px auto 0; max-width:420px; padding:14px;'
+      + 'border:1px solid #d8cfb8; border-radius:12px; background:#faf9f6; text-align:center;';
+    var topp = document.createElement('p');
+    topp.style.cssText = 'margin:0 0 10px; font-size:14px; color:#1a1a1a; line-height:1.5;';
+    topp.innerHTML = 'Sikkerhetskopien er klar.<br><b>' + antall + ' komposisjoner</b>, ' + mbTekst + ' MB.';
+    var knapp = document.createElement('button');
+    knapp.className = 'btn btn-primary';
+    knapp.textContent = '💾 Lagre fila nå';
+    var hjelp = document.createElement('p');
+    hjelp.style.cssText = 'margin:10px 0 0; font-size:12px; color:#8a857b; line-height:1.5;';
+    hjelp.innerHTML = 'Velg <b>Lagre i Filer</b> i menyen som kommer opp, og legg den '
+      + 'et sted du husker — for eksempel <b>På min iPhone</b>. Den havner ikke i Nedlastinger.';
+    knapp.onclick = async function(){
+      knapp.disabled = true;
+      var utfall = await skDelFil(blob, navn);
+      knapp.disabled = false;
+      if(utfall === 'avbrutt'){
+        melding('Ingenting ble lagret. Trykk «Lagre fila nå» igjen når du er klar.', true);
+        return;
+      }
+      try{ localStorage.setItem(SIST, idag()); }catch(e){}
+      visSist();
+      boks.remove();
+      melding(utfall === 'delt'
+        ? 'Kopien er lagret. Husk hvor du la den — du trenger den bare hvis noe skulle forsvinne.'
+        : 'Kopien er lastet ned. Du finner den i Filer, under Nedlastinger.');
+    };
+    boks.appendChild(topp); boks.appendChild(knapp); boks.appendChild(hjelp);
+    vert.parentNode.insertBefore(boks, vert);
+  }
 
   window.sikkerhetskopiLastNed = async function(){
     try{
@@ -5046,15 +5195,18 @@ init();
       if(!antall){ melding('Dagboken er tom, så det er ingenting å ta vare på ennå.', true); return; }
       var tekst = JSON.stringify(pakke);
       var blob = new Blob([tekst], {type:'application/json'});
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = 'fotomaleri-sikkerhetskopi-' + idag() + '.json';
-      document.body.appendChild(a); a.click();
-      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+      var navn = 'fotomaleri-sikkerhetskopi-' + idag() + '.json';
+      var mb = Math.round(tekst.length/1048576*10)/10;
+      var mbTekst = (mb < 0.1 ? 'under 0,1' : String(mb).replace('.',','));
+      if(typeof erApple === 'function' && erApple()){
+        skVisLagreknapp(blob, navn, antall, mbTekst);
+        melding('Kopien er klar. Trykk «Lagre fila nå» for å legge den i Filer.');
+        return;
+      }
+      lagreFil(blob, navn);
       try{ localStorage.setItem(SIST, idag()); }catch(e){}
       visSist();
-      var mb = Math.round(tekst.length/1048576*10)/10;
-      melding(antall + ' komposisjoner er lagret i én fil (' + (mb < 0.1 ? 'under 0,1' : String(mb).replace('.',',')) + ' MB). Legg den et sted du finner den igjen.');
+      melding(antall + ' komposisjoner er lagret i én fil (' + mbTekst + ' MB). Legg den et sted du finner den igjen.');
     }catch(e){
       melding('Kunne ikke lage sikkerhetskopi: ' + (e && e.message ? e.message : 'ukjent feil'), true);
     }
