@@ -5780,78 +5780,106 @@ init();
 })();
 </script>
 
-<!-- ═══════════ FLYTT MELLOM ENHETER ═══════════
-     Maleriene ligger paa den enheten de ble lagd paa. Det staar det ingen
-     steder, og folk oppdager det foerst naar de aapner appen paa iPaden og
-     finner den tom — og tror da at noe er slettet.
+<!-- ═══════════ SIKKERHETSKOPI-PANEL ═══════════
+     Tre ting dette retter:
 
-     Her forklares det, og de to knappene som allerede finnes brukes om
-     igjen. Ett navn paa fila overalt — sikkerhetskopi — for det er den
-     samme fila, og ett ord er nok aa huske. Ingenting nytt bygges. -->
+     1. Sikkerhetskopien laa nederst i dagboken, under alle maleriene. Har
+        du femti bilder der, ser du den aldri. Naa ligger den oeverst, og
+        det er et eget valg i toppen av appen som hopper rett hit.
+     2. Det var to sett knapper som gjorde det samme — de opprinnelige og
+        forklaringsboksen under. Naa er det ett sett, ett sted.
+     3. Har man mange kopier liggende, er det umulig aa vite hvilken som er
+        nyest. Naa kan man velge alle paa én gang: appen slaar dem sammen,
+        og nyeste utgave av hvert maleri vinner uansett rekkefoelge.
+
+     Panelet staar aapent til man har tatt sin foerste kopi, og folder seg
+     sammen etterpaa. -->
 <script>
 (function(){
   'use strict';
 
+  var AAPEN = 'fotomaleri-sk-panel-aapent';
+  var SIST  = 'fotomaleri-sist-sikkerhetskopi';
+
+  function les(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+  function skriv(k,v){ try { localStorage.setItem(k, String(v)); } catch(e){} }
+
   var T = {
     no: {
-      tittel: 'Bytter du mellom iPad, telefon og Mac?',
-      brod:   'Maleriene ligger på den enheten du lagde dem på. De følger ikke med av seg selv. Du flytter dem med sikkerhetskopien, og det tar ett minutt.',
-      steg1:  'På enheten som har maleriene:',
-      knapp1: '💾 Lag sikkerhetskopi',
-      steg2:  'Åpne appen på den andre enheten, og:',
-      knapp2: '📥 Hent inn sikkerhetskopi',
-      hvordanT: 'Hvordan får du fila over?',
-      hvordan1: 'Fra iPhone eller iPad til en Mac: velg AirDrop i vinduet som kommer opp.',
-      hvordan2: 'Mellom telefon og PC: velg e-post og send fila til deg selv. Åpne mailen på den andre enheten.',
-      hvordan3: 'På PC og Mac havner fila i Nedlastinger. Derfra sender du den videre selv.',
-      tittelNed: 'Lag en sikkerhetskopi av hele dagboken',
-      tittelInn: 'Hent inn en sikkerhetskopi du har lagret før',
-      fot:    'Det er den samme kopien du tar for å ha maleriene trygt. Ingenting forsvinner fra enheten du flytter fra, og ingenting blir dobbelt — finnes samme maleri begge steder, er det den nyeste utgaven som gjelder.'
+      knapp:   '💾 Sikkerhetskopi',
+      tittel:  'Sikkerhetskopi og bytte av enhet',
+      brod:    'Maleriene dine ligger i denne nettleseren, på denne enheten. De følger ikke automatisk med noe annet sted.',
+      lag:     '💾 Lag sikkerhetskopi',
+      hent:    '📥 Hent inn sikkerhetskopi',
+      lagHjelp:'Samler hele dagboken i én fil du kan ta vare på.',
+      hentHjelp:'Har du flere kopier liggende, velg alle på én gang. Appen bruker den nyeste utgaven av hvert maleri, og ingenting blir dobbelt.',
+      bytteT:  'Bytter du mellom iPad, telefon og Mac?',
+      bytte1:  'På enheten som har maleriene: lag en sikkerhetskopi.',
+      bytte2:  'Åpne appen på den andre enheten og hent den inn.',
+      hvordanT:'Hvordan får du fila over?',
+      hvordan1:'Fra iPhone eller iPad til en Mac: velg AirDrop i vinduet som kommer opp.',
+      hvordan2:'Mellom telefon og PC: velg e-post og send fila til deg selv.',
+      hvordan3:'På PC og Mac havner fila i Nedlastinger. Derfra sender du den videre selv.',
+      vis:     'Vis',
+      skjul:   'Skjul',
+      leser:   'Leser {n} filer …'
     },
     sv: {
-      tittel: 'Byter du mellan iPad, telefon och Mac?',
-      brod:   'Målningarna finns på den enhet du skapade dem på. De följer inte med av sig själva. Du flyttar dem med säkerhetskopian, och det tar en minut.',
-      steg1:  'På enheten som har målningarna:',
-      knapp1: '💾 Skapa säkerhetskopia',
-      steg2:  'Öppna appen på den andra enheten och:',
-      knapp2: '📥 Hämta in säkerhetskopia',
-      hvordanT: 'Hur får du över filen?',
-      hvordan1: 'Från iPhone eller iPad till en Mac: välj AirDrop i rutan som dyker upp.',
-      hvordan2: 'Mellan telefon och PC: välj e-post och skicka filen till dig själv. Öppna mejlet på den andra enheten.',
-      hvordan3: 'På PC och Mac hamnar filen i Hämtade filer. Därifrån skickar du den vidare själv.',
-      tittelNed: 'Skapa en säkerhetskopia av hela dagboken',
-      tittelInn: 'Hämta in en säkerhetskopia du sparat tidigare',
-      fot:    'Det är samma kopia som du tar för att ha målningarna i tryggt förvar. Ingenting försvinner från enheten du flyttar från, och ingenting blir dubbelt — finns samma målning på båda ställena gäller den nyaste versionen.'
+      knapp:   '💾 Säkerhetskopia',
+      tittel:  'Säkerhetskopia och byte av enhet',
+      brod:    'Dina målningar finns i den här webbläsaren, på den här enheten. De följer inte automatiskt med någon annanstans.',
+      lag:     '💾 Skapa säkerhetskopia',
+      hent:    '📥 Hämta in säkerhetskopia',
+      lagHjelp:'Samlar hela dagboken i en fil du kan spara.',
+      hentHjelp:'Har du flera kopior sparade, välj alla på en gång. Appen använder den nyaste versionen av varje målning, och ingenting blir dubbelt.',
+      bytteT:  'Byter du mellan iPad, telefon och Mac?',
+      bytte1:  'På enheten som har målningarna: skapa en säkerhetskopia.',
+      bytte2:  'Öppna appen på den andra enheten och hämta in den.',
+      hvordanT:'Hur får du över filen?',
+      hvordan1:'Från iPhone eller iPad till en Mac: välj AirDrop i rutan som dyker upp.',
+      hvordan2:'Mellan telefon och PC: välj e-post och skicka filen till dig själv.',
+      hvordan3:'På PC och Mac hamnar filen i Hämtade filer. Därifrån skickar du den vidare själv.',
+      vis:     'Visa',
+      skjul:   'Dölj',
+      leser:   'Läser {n} filer …'
     },
     da: {
-      tittel: 'Skifter du mellem iPad, telefon og Mac?',
-      brod:   'Malerierne ligger på den enhed, du lavede dem på. De følger ikke med af sig selv. Du flytter dem med sikkerhedskopien, og det tager et minut.',
-      steg1:  'På enheden, der har malerierne:',
-      knapp1: '💾 Lav sikkerhedskopi',
-      steg2:  'Åbn appen på den anden enhed, og:',
-      knapp2: '📥 Hent sikkerhedskopi ind',
-      hvordanT: 'Hvordan får du filen over?',
-      hvordan1: 'Fra iPhone eller iPad til en Mac: vælg AirDrop i vinduet, der kommer frem.',
-      hvordan2: 'Mellem telefon og PC: vælg e-mail og send filen til dig selv. Åbn mailen på den anden enhed.',
-      hvordan3: 'På PC og Mac havner filen i Overførsler. Derfra sender du den videre selv.',
-      tittelNed: 'Lav en sikkerhedskopi af hele dagbogen',
-      tittelInn: 'Hent en sikkerhedskopi ind, som du har gemt før',
-      fot:    'Det er den samme kopi, du tager for at have malerierne i sikkerhed. Intet forsvinder fra enheden, du flytter fra, og intet bliver dobbelt — findes det samme maleri begge steder, er det den nyeste udgave, der gælder.'
+      knapp:   '💾 Sikkerhedskopi',
+      tittel:  'Sikkerhedskopi og skift af enhed',
+      brod:    'Dine malerier ligger i denne browser, på denne enhed. De følger ikke automatisk med andre steder hen.',
+      lag:     '💾 Lav sikkerhedskopi',
+      hent:    '📥 Hent sikkerhedskopi ind',
+      lagHjelp:'Samler hele dagbogen i én fil, du kan gemme.',
+      hentHjelp:'Har du flere kopier liggende, så vælg alle på én gang. Appen bruger den nyeste udgave af hvert maleri, og intet bliver dobbelt.',
+      bytteT:  'Skifter du mellem iPad, telefon og Mac?',
+      bytte1:  'På enheden, der har malerierne: lav en sikkerhedskopi.',
+      bytte2:  'Åbn appen på den anden enhed, og hent den ind.',
+      hvordanT:'Hvordan får du filen over?',
+      hvordan1:'Fra iPhone eller iPad til en Mac: vælg AirDrop i vinduet, der kommer frem.',
+      hvordan2:'Mellem telefon og PC: vælg e-mail og send filen til dig selv.',
+      hvordan3:'På PC og Mac havner filen i Overførsler. Derfra sender du den videre selv.',
+      vis:     'Vis',
+      skjul:   'Skjul',
+      leser:   'Læser {n} filer …'
     },
     en: {
-      tittel: 'Moving between iPad, phone and Mac?',
-      brod:   'Your paintings live on the device you made them on. They do not travel by themselves. You move them with your backup, and it takes a minute.',
-      steg1:  'On the device that has the paintings:',
-      knapp1: '💾 Make a backup',
-      steg2:  'Open the app on the other device, and:',
-      knapp2: '📥 Restore a backup',
-      hvordanT: 'How do you get the file across?',
-      hvordan1: 'From iPhone or iPad to a Mac: choose AirDrop in the window that appears.',
-      hvordan2: 'Between phone and PC: choose email and send the file to yourself. Open the mail on the other device.',
-      hvordan3: 'On PC and Mac the file lands in Downloads. From there you send it on yourself.',
-      tittelNed: 'Make a backup of your whole diary',
-      tittelInn: 'Restore a backup you saved earlier',
-      fot:    'It is the same copy you make to keep your paintings safe. Nothing leaves the device you move from, and nothing is duplicated — where the same painting exists in both places, the newer version wins.'
+      knapp:   '💾 Backup',
+      tittel:  'Backup and switching devices',
+      brod:    'Your paintings live in this browser, on this device. They do not travel anywhere else on their own.',
+      lag:     '💾 Make a backup',
+      hent:    '📥 Restore a backup',
+      lagHjelp:'Gathers your whole diary into one file you can keep.',
+      hentHjelp:'If you have several backups saved, select them all at once. The app uses the newest version of each painting, and nothing is duplicated.',
+      bytteT:  'Moving between iPad, phone and Mac?',
+      bytte1:  'On the device that has the paintings: make a backup.',
+      bytte2:  'Open the app on the other device and bring it in.',
+      hvordanT:'How do you get the file across?',
+      hvordan1:'From iPhone or iPad to a Mac: choose AirDrop in the window that appears.',
+      hvordan2:'Between phone and PC: choose email and send the file to yourself.',
+      hvordan3:'On PC and Mac the file lands in Downloads. From there you send it on yourself.',
+      vis:     'Show',
+      skjul:   'Hide',
+      leser:   'Reading {n} files …'
     }
   };
 
@@ -5861,145 +5889,550 @@ init();
   }
   function t(n){ return (T[spraak()] || T.no)[n] || T.no[n] || ''; }
 
-  function lagKnapp(tekst, handling){
+  var F = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+
+  function knapp(id, stor){
     var b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = tekst;
-    b.style.cssText = 'display:block;width:100%;max-width:320px;margin:8px auto 0;padding:13px 18px;' +
-      'font:600 15px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-      'color:#f5f5f3;background:#1a1a1a;border:none;border-radius:11px;cursor:pointer;';
-    b.onclick = function(){ try { handling(); } catch(e){} };
+    b.type = 'button'; b.id = id;
+    b.style.cssText = 'display:block;width:100%;max-width:340px;margin:0 auto;padding:14px 18px;' +
+      'font:600 15px ' + F + ';border:none;border-radius:11px;cursor:pointer;' +
+      (stor ? 'color:#f5f5f3;background:#1a1a1a;' : 'color:#1a1a1a;background:#fff;border:1px solid #d8cfb8;');
     return b;
   }
 
-  function lagSteg(nr, tekst){
-    var rad = document.createElement('div');
-    rad.style.cssText = 'display:flex;gap:11px;align-items:flex-start;margin:16px 0 0;text-align:left;';
-    var tall = document.createElement('div');
-    tall.textContent = String(nr);
-    tall.style.cssText = 'flex:0 0 26px;height:26px;border-radius:50%;background:#c4944a;color:#fff;' +
-      'font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' +
-      'display:flex;align-items:center;justify-content:center;margin-top:1px;';
-    var t2 = document.createElement('div');
-    t2.style.cssText = 'flex:1;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-      'color:#1a1a1a;line-height:1.5;';
-    t2.textContent = tekst;
-    rad.appendChild(tall); rad.appendChild(t2);
-    return { rad: rad, tekstfelt: t2 };
+  function avsnitt(id, css){
+    var p = document.createElement('p');
+    p.id = id; p.style.cssText = css;
+    return p;
   }
 
-  function tegn(){
-    var vert = document.getElementById('sk-hint');
-    if (!vert || !vert.parentNode) return false;
+  /* ── Panelet ───────────────────────────────────────────────────────── */
+  function bygg(){
+    var hint = document.getElementById('sk-hint');
+    var rute = document.getElementById('diaryGrid');
+    if (!hint || !rute || document.getElementById('sk-panel')) return false;
 
-    var gammel = document.getElementById('bytt-enhet');
-    if (gammel) gammel.remove();
+    var panel = document.createElement('div');
+    panel.id = 'sk-panel';
+    panel.style.cssText = 'margin:0 auto 22px;max-width:520px;border:1px solid #ded7c9;' +
+      'border-radius:14px;background:#faf9f6;overflow:hidden;';
 
-    var boks = document.createElement('div');
-    boks.id = 'bytt-enhet';
-    boks.style.cssText = 'margin:22px auto 0;max-width:460px;padding:20px 22px 22px;' +
-      'border:1px solid #ded7c9;border-radius:14px;background:#faf9f6;text-align:center;';
+    /* Klikkbar topp */
+    var topp = document.createElement('button');
+    topp.type = 'button'; topp.id = 'sk-panel-topp';
+    topp.style.cssText = 'width:100%;display:flex;align-items:center;gap:10px;padding:15px 18px;' +
+      'background:none;border:none;cursor:pointer;text-align:left;font:600 15.5px ' + F + ';color:#1a1a1a;';
+    var tTittel = document.createElement('span');
+    tTittel.id = 'sk-panel-tittel'; tTittel.style.flex = '1';
+    var pil = document.createElement('span');
+    pil.id = 'sk-panel-pil';
+    pil.style.cssText = 'font-size:13px;color:#8a857b;font-weight:500;';
+    topp.appendChild(tTittel); topp.appendChild(pil);
 
-    var h = document.createElement('div');
-    h.id = 'be-tittel';
-    h.style.cssText = 'font:600 17px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-      'color:#1a1a1a;margin:0 0 8px;';
+    var kropp = document.createElement('div');
+    kropp.id = 'sk-panel-kropp';
+    kropp.style.cssText = 'padding:0 18px 20px;';
 
-    var p = document.createElement('p');
-    p.id = 'be-brod';
-    p.style.cssText = 'margin:0;font:14.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-      'color:#4a463f;line-height:1.6;';
+    kropp.appendChild(avsnitt('sk-brod', 'margin:0 0 16px;font:14.5px ' + F + ';color:#4a463f;line-height:1.6;'));
 
-    var s1 = lagSteg(1, '');
-    s1.tekstfelt.id = 'be-steg1';
-    var k1 = lagKnapp('', function(){
-      if (typeof window.sikkerhetskopiLastNed === 'function') window.sikkerhetskopiLastNed();
-    });
-    k1.id = 'be-knapp1';
+    var kLag = knapp('sk-lag', true);
+    kLag.onclick = function(){ if (typeof window.sikkerhetskopiLastNed === 'function') window.sikkerhetskopiLastNed(); };
+    kropp.appendChild(kLag);
+    kropp.appendChild(avsnitt('sk-lag-hjelp', 'margin:7px 0 18px;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;text-align:center;'));
 
-    var s2 = lagSteg(2, '');
-    s2.tekstfelt.id = 'be-steg2';
-    var k2 = lagKnapp('', function(){
-      if (typeof window.sikkerhetskopiHentInn === 'function') window.sikkerhetskopiHentInn();
-    });
-    k2.id = 'be-knapp2';
+    var kHent = knapp('sk-hent', false);
+    kHent.onclick = function(){ if (typeof window.sikkerhetskopiHentInn === 'function') window.sikkerhetskopiHentInn(); };
+    kropp.appendChild(kHent);
+    kropp.appendChild(avsnitt('sk-hent-hjelp', 'margin:7px 0 0;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;text-align:center;'));
 
-    var fot = document.createElement('p');
-    fot.id = 'be-fot';
-    fot.style.cssText = 'margin:18px 0 0;font:12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-      'color:#8a857b;line-height:1.55;';
-
-    boks.appendChild(h);
-    boks.appendChild(p);
-    var hvordan = document.createElement('div');
-    hvordan.style.cssText = 'margin:20px 0 0;padding:14px 16px;background:#f4efe4;border-radius:11px;text-align:left;';
-    var hT = document.createElement('div');
-    hT.id = 'be-hvordanT';
-    hT.style.cssText = 'font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1a1a1a;margin:0 0 7px;';
-    hvordan.appendChild(hT);
-    for (var r = 1; r <= 3; r++){
-      var lin = document.createElement('div');
-      lin.id = 'be-hvordan' + r;
-      lin.style.cssText = 'font:13.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
-        'color:#4a463f;line-height:1.55;margin:0 0 5px;padding-left:14px;text-indent:-14px;';
-      hvordan.appendChild(lin);
+    /* Statuslinja appen fyller ut selv flyttes hit inn */
+    var sist = document.getElementById('sk-sist');
+    if (sist){
+      sist.style.cssText = 'margin:14px 0 0;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;text-align:center;';
+      kropp.appendChild(sist);
     }
 
-    boks.appendChild(s1.rad); boks.appendChild(k1);
-    boks.appendChild(s2.rad); boks.appendChild(k2);
-    boks.appendChild(hvordan);
-    boks.appendChild(fot);
+    var strek = document.createElement('div');
+    strek.style.cssText = 'height:1px;background:#e6e0d3;margin:20px 0 16px;';
+    kropp.appendChild(strek);
 
-    vert.parentNode.insertBefore(boks, vert.nextSibling);
+    kropp.appendChild(avsnitt('sk-bytte-t', 'margin:0 0 10px;font:600 14.5px ' + F + ';color:#1a1a1a;'));
+    for (var s = 1; s <= 2; s++){
+      var rad = document.createElement('div');
+      rad.style.cssText = 'display:flex;gap:10px;align-items:flex-start;margin:0 0 9px;';
+      var tall = document.createElement('span');
+      tall.textContent = String(s);
+      tall.style.cssText = 'flex:0 0 22px;height:22px;border-radius:50%;background:#c4944a;color:#fff;' +
+        'font:600 12.5px ' + F + ';display:flex;align-items:center;justify-content:center;margin-top:1px;';
+      var tx = avsnitt('sk-bytte-' + s, 'margin:0;font:14px ' + F + ';color:#4a463f;line-height:1.5;');
+      rad.appendChild(tall); rad.appendChild(tx);
+      kropp.appendChild(rad);
+    }
+
+    var boks = document.createElement('div');
+    boks.style.cssText = 'margin:14px 0 0;padding:13px 15px;background:#f4efe4;border-radius:10px;';
+    boks.appendChild(avsnitt('sk-hvordan-t', 'margin:0 0 6px;font:600 13.5px ' + F + ';color:#1a1a1a;'));
+    for (var r = 1; r <= 3; r++){
+      boks.appendChild(avsnitt('sk-hvordan-' + r,
+        'margin:0 0 4px;font:13px ' + F + ';color:#4a463f;line-height:1.5;padding-left:13px;text-indent:-13px;'));
+    }
+    kropp.appendChild(boks);
+
+    /* Den gamle hjelpeteksten flyttes med, i det små */
+    hint.style.cssText = 'margin:12px 0 0;font:12px ' + F + ';color:#a09a8e;line-height:1.5;text-align:center;';
+    kropp.appendChild(hint);
+
+    panel.appendChild(topp); panel.appendChild(kropp);
+    rute.parentNode.insertBefore(panel, rute);
+
+    /* De to opprinnelige knappene gjorde nøyaktig det samme. To sett var
+       forvirrende, så de skjules — funksjonene bak er de samme. */
+    ['skNedBtn','skInnBtn'].forEach(function(id){
+      var e = document.getElementById(id);
+      if (e) e.style.display = 'none';
+    });
+
+    topp.onclick = function(){ settAapen(!erAapen()); };
+    settAapen(erAapen());
     tekstUt();
     return true;
   }
 
+  function erAapen(){
+    var v = les(AAPEN);
+    if (v === '0') return false;
+    if (v === '1') return true;
+    return !les(SIST);           /* aldri tatt kopi → staa aapent */
+  }
+
+  function settAapen(paa){
+    skriv(AAPEN, paa ? '1' : '0');
+    var k = document.getElementById('sk-panel-kropp');
+    var p = document.getElementById('sk-panel-pil');
+    if (k) k.style.display = paa ? 'block' : 'none';
+    if (p) p.textContent = paa ? t('skjul') : t('vis');
+  }
+
   function tekstUt(){
-    var par = [['be-tittel','tittel'], ['be-brod','brod'], ['be-steg1','steg1'],
-               ['be-knapp1','knapp1'], ['be-steg2','steg2'], ['be-knapp2','knapp2'],
-               ['be-hvordanT','hvordanT'], ['be-hvordan1','hvordan1'],
-               ['be-hvordan2','hvordan2'], ['be-hvordan3','hvordan3'],
-               ['be-fot','fot']];
+    var par = [['sk-panel-tittel','tittel'], ['sk-brod','brod'], ['sk-lag','lag'],
+               ['sk-lag-hjelp','lagHjelp'], ['sk-hent','hent'], ['sk-hent-hjelp','hentHjelp'],
+               ['sk-bytte-t','bytteT'], ['sk-bytte-1','bytte1'], ['sk-bytte-2','bytte2'],
+               ['sk-hvordan-t','hvordanT']];
     for (var i = 0; i < par.length; i++){
-      var el = document.getElementById(par[i][0]);
-      if (!el) continue;
-      var v = t(par[i][1]);
-      el.textContent = (par[i][0].indexOf('be-hvordan') === 0 && par[i][0] !== 'be-hvordanT') ? ('· ' + v) : v;
+      var e = document.getElementById(par[i][0]);
+      if (e) e.textContent = t(par[i][1]);
     }
-    knappeneOver();
+    for (var r = 1; r <= 3; r++){
+      var e2 = document.getElementById('sk-hvordan-' + r);
+      if (e2) e2.textContent = '· ' + t('hvordan' + r);
+    }
+    var g = document.getElementById('sk-genvei-tekst');
+    if (g) g.textContent = t('knapp');
+    var p = document.getElementById('sk-panel-pil');
+    if (p) p.textContent = (document.getElementById('sk-panel-kropp') || {}).style &&
+      document.getElementById('sk-panel-kropp').style.display === 'none' ? t('vis') : t('skjul');
   }
 
-  /* De to knappene som laa der fra foer er skrevet fast paa norsk i HTML-en
-     og fulgte ikke spraakvalget. Naa styres ordlyden fra ett sted — her —
-     saa alle knappene i appen sier det samme, paa samme spraak. */
-  function knappeneOver(){
-    var n = document.getElementById('skNedBtn');
-    var i = document.getElementById('skInnBtn');
-    if (n){ n.textContent = t('knapp1'); n.title = t('tittelNed'); }
-    if (i){ i.textContent = t('knapp2'); i.title = t('tittelInn'); }
+  /* ── Eget valg i toppen ────────────────────────────────────────────── */
+  function genvei(){
+    var tur = document.getElementById('tourBtn');
+    if (!tur || !tur.parentNode || document.getElementById('sk-genvei')) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'sk-genvei'; b.className = tur.className;
+    var sp = document.createElement('span'); sp.id = 'sk-genvei-tekst';
+    b.appendChild(sp);
+    b.style.marginLeft = '6px';
+    b.onclick = function(){
+      try { if (typeof gotoStep === 'function') gotoStep(6); } catch(e){}
+      try { if (typeof gotoStep === 'function' && !document.getElementById('sk-panel')) gotoStep(7); } catch(e){}
+      settAapen(true);
+      var p = document.getElementById('sk-panel');
+      if (p && p.scrollIntoView) setTimeout(function(){ p.scrollIntoView({behavior:'smooth', block:'center'}); }, 120);
+    };
+    tur.parentNode.insertBefore(b, tur.nextSibling);
+    tekstUt();
   }
 
-  /* Appen skriver om alle tekster naar spraaket byttes. Den kjenner ikke
-     til denne boksen, saa den maa faa beskjed selv. */
+  /* ── Flere filer paa én gang ───────────────────────────────────────── */
+  function flerefiler(){
+    var inp = document.getElementById('sk-fil');
+    if (inp && !inp.multiple) inp.multiple = true;
+
+    if (typeof window.skLesFil !== 'function' || window.skLesFil._flere) return;
+    var original = window.skLesFil;
+
+    var ny = async function(input){
+      var filer = input && input.files ? Array.prototype.slice.call(input.files) : [];
+      if (filer.length <= 1) return original(input);
+
+      /* Eldst foerst, saa den nyeste utgaven av hvert maleri legges sist.
+         Filnavnet baerer datoen; mangler den, brukes filas egen tid. */
+      filer.sort(function(a, b){
+        var da = (a.name.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+        var db = (b.name.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+        if (da && db && da !== db) return da < db ? -1 : 1;
+        return (a.lastModified || 0) - (b.lastModified || 0);
+      });
+
+      for (var i = 0; i < filer.length; i++){
+        await original({ files: [filer[i]] });
+        if (i < filer.length - 1) await new Promise(function(r){ setTimeout(r, 400); });
+      }
+    };
+    ny._flere = true;
+    window.skLesFil = ny;
+  }
+
+  /* ── Oppstart ──────────────────────────────────────────────────────── */
   function foelgSpraak(){
-    if (typeof window.setLang !== 'function' || window.setLang._beVakt) return;
+    if (typeof window.setLang !== 'function' || window.setLang._skVakt) return;
     var original = window.setLang;
-    var ny = function(l){
+    var ny = function(){
       var svar = original.apply(this, arguments);
       try { tekstUt(); } catch(e){}
       return svar;
     };
-    ny._beVakt = true;
+    ny._skVakt = true;
     window.setLang = ny;
   }
 
   var forsok = 0;
   var venter = setInterval(function(){
     forsok++;
-    var ferdig = tegn();
-    if (ferdig) foelgSpraak();
-    if (ferdig || forsok > 60) clearInterval(venter);
+    var ok = bygg();
+    if (ok){ genvei(); foelgSpraak(); flerefiler(); }
+    if (ok || forsok > 80) clearInterval(venter);
+  }, 250);
+
+})();
+</script>
+
+<!-- ═══════════ RETT OPP KANTEN ═══════════
+     Den automatiske bakgrunnsfjerningen tar sjelden alt. Det blir liggende
+     igjen flak rundt haaret, en skygge langs skulderen, en bit av stolen —
+     og til naa fantes det ingen maate aa fjerne det paa. Man maatte godta
+     resultatet eller laste opp bildet paa nytt.
+
+     Her kommer tre ting:
+       Stram kanten  — én skyvebryter som tar bort de halvgjennomsiktige
+                       kantpikslene. Fjerner glorien rundt motivet i ett drag.
+       Visk bort     — pensel som fjerner det som ble igjen.
+       Hent tilbake  — samme pensel motsatt vei, henter fram igjen det
+                       maskinen tok for mye av.
+
+     Angrer bygger ikke paa lagrede bilder, men paa selve penselstrokene:
+     de spilles av paa nytt fra originalen hver gang. Det gjoer angring
+     eksakt, og koster nesten ingenting i minne — viktig paa telefon,
+     der bildene er opptil 2000 piksler. -->
+<script>
+(function(){
+  'use strict';
+
+  var T = {
+    no: { knapp:'🧽 Rett opp kanten', tittel:'Rett opp kanten',
+          visk:'Visk bort', hent:'Hent tilbake', stram:'Stram kanten',
+          storrelse:'Penselstørrelse', angre:'Angre', nullstill:'Nullstill',
+          ferdig:'Ferdig', avbryt:'Avbryt',
+          hjelp:'Dra over bildet for å fjerne det som ble igjen. Terningmønsteret viser hva som er gjennomsiktig.' },
+    sv: { knapp:'🧽 Putsa kanten', tittel:'Putsa kanten',
+          visk:'Sudda bort', hent:'Hämta tillbaka', stram:'Strama åt kanten',
+          storrelse:'Penselstorlek', angre:'Ångra', nullstill:'Nollställ',
+          ferdig:'Klar', avbryt:'Avbryt',
+          hjelp:'Dra över bilden för att ta bort det som blev kvar. Rutmönstret visar vad som är genomskinligt.' },
+    da: { knapp:'🧽 Ret kanten til', tittel:'Ret kanten til',
+          visk:'Visk bort', hent:'Hent tilbage', stram:'Stram kanten',
+          storrelse:'Penselstørrelse', angre:'Fortryd', nullstill:'Nulstil',
+          ferdig:'Færdig', avbryt:'Annuller',
+          hjelp:'Træk hen over billedet for at fjerne det, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt.' },
+    en: { knapp:'🧽 Clean up the edge', tittel:'Clean up the edge',
+          visk:'Erase', hent:'Bring back', stram:'Tighten the edge',
+          storrelse:'Brush size', angre:'Undo', nullstill:'Reset',
+          ferdig:'Done', avbryt:'Cancel',
+          hjelp:'Drag across the image to remove what was left behind. The checkerboard shows what is transparent.' }
+  };
+  function spraak(){ try { if (typeof lang === 'string' && T[lang]) return lang; } catch(e){} return 'no'; }
+  function t(n){ return (T[spraak()] || T.no)[n] || T.no[n] || ''; }
+
+  var F = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+
+  var basis = null;        /* AI-resultatet slik det var da vi aapnet */
+  var original = null;     /* bildet foer bakgrunnen ble fjernet */
+  var strok = [];          /* [{modus, r, punkter:[[x,y],…]}] */
+  var terskel = 0;
+  var lerret, ctx, arbeid;
+  var tegner = false, naa = null;
+  var pensel = 40, modus = 'visk';
+
+  function lastBilde(url){
+    return new Promise(function(ok, nei){
+      var i = new Image();
+      i.onload = function(){ ok(i); };
+      i.onerror = nei;
+      i.src = url;
+    });
+  }
+
+  /* ── Tegn alt paa nytt: basis → terskel → strok ────────────────────── */
+  function tegnAlt(){
+    if (!arbeid) return;
+    var c = arbeid.getContext('2d');
+    c.clearRect(0, 0, arbeid.width, arbeid.height);
+    c.drawImage(basis, 0, 0);
+
+    if (terskel > 0){
+      var d = c.getImageData(0, 0, arbeid.width, arbeid.height);
+      var p = d.data;
+      for (var i = 3; i < p.length; i += 4){
+        if (p[i] < terskel) p[i] = 0;
+      }
+      c.putImageData(d, 0, 0);
+    }
+
+    for (var s = 0; s < strok.length; s++) spillAv(c, strok[s]);
+    vis();
+  }
+
+  function spillAv(c, st){
+    var pkt = st.punkter;
+    if (!pkt.length) return;
+    for (var i = 0; i < pkt.length; i++){
+      var forrige = i ? pkt[i-1] : pkt[i];
+      flekk(c, st, forrige[0], forrige[1], pkt[i][0], pkt[i][1]);
+    }
+  }
+
+  /* Myk kant paa penselen, ellers blir utklippet hakkete. */
+  function flekk(c, st, x0, y0, x1, y1){
+    var lengde = Math.hypot(x1-x0, y1-y0);
+    var steg = Math.max(1, st.r / 4);
+    var antall = Math.max(1, Math.ceil(lengde / steg));
+    for (var i = 0; i <= antall; i++){
+      var x = x0 + (x1-x0) * (i/antall);
+      var y = y0 + (y1-y0) * (i/antall);
+      if (st.modus === 'visk'){
+        var g = c.createRadialGradient(x, y, st.r * 0.55, x, y, st.r);
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.save();
+        c.globalCompositeOperation = 'destination-out';
+        c.fillStyle = g;
+        c.beginPath(); c.arc(x, y, st.r, 0, Math.PI*2); c.fill();
+        c.restore();
+      } else {
+        c.save();
+        c.beginPath(); c.arc(x, y, st.r, 0, Math.PI*2); c.clip();
+        c.drawImage(original, 0, 0);
+        c.restore();
+      }
+    }
+  }
+
+  /* ── Vise ──────────────────────────────────────────────────────────── */
+  function vis(){
+    if (!lerret) return;
+    ctx.clearRect(0, 0, lerret.width, lerret.height);
+    ctx.drawImage(arbeid, 0, 0, lerret.width, lerret.height);
+  }
+
+  function bildepunkt(e){
+    var r = lerret.getBoundingClientRect();
+    var x = (e.clientX - r.left) / r.width  * arbeid.width;
+    var y = (e.clientY - r.top)  / r.height * arbeid.height;
+    return [x, y];
+  }
+
+  /* ── Skjermen ──────────────────────────────────────────────────────── */
+  function knapp(tekst, primar){
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = tekst;
+    b.style.cssText = 'padding:11px 18px;border-radius:10px;font:600 14.5px ' + F + ';cursor:pointer;border:none;' +
+      (primar ? 'background:#1a1a1a;color:#f5f5f3;' : 'background:#fff;color:#1a1a1a;border:1px solid #d8cfb8;');
+    return b;
+  }
+
+  async function apne(){
+    if (!state || !state.portraitProcessed) return;
+    try {
+      basis = await lastBilde(state.portraitProcessed);
+      original = state.portraitOriginal ? await lastBilde(state.portraitOriginal) : basis;
+    } catch(e){ return; }
+
+    strok = []; terskel = 0; modus = 'visk';
+
+    arbeid = document.createElement('canvas');
+    arbeid.width = basis.width; arbeid.height = basis.height;
+
+    var over = document.createElement('div');
+    over.id = 'pk-over';
+    over.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:#f5f5f3;' +
+      'display:flex;flex-direction:column;font:14px ' + F + ';';
+
+    var topp = document.createElement('div');
+    topp.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1a1a1a;color:#f5f5f3;';
+    var tit = document.createElement('div');
+    tit.textContent = t('tittel');
+    tit.style.cssText = 'flex:1;font:600 16px ' + F + ';';
+    var avb = knapp(t('avbryt'), false);
+    var fer = knapp(t('ferdig'), true);
+    fer.style.background = '#c4944a'; fer.style.color = '#fff';
+    topp.appendChild(tit); topp.appendChild(avb); topp.appendChild(fer);
+
+    var midt = document.createElement('div');
+    midt.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;';
+
+    lerret = document.createElement('canvas');
+    var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
+    lerret.width = Math.round(basis.width * skala);
+    lerret.height = Math.round(basis.height * skala);
+    lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
+      'border-radius:10px;background-image:' +
+      'linear-gradient(45deg,#e2ded4 25%,transparent 25%),' +
+      'linear-gradient(-45deg,#e2ded4 25%,transparent 25%),' +
+      'linear-gradient(45deg,transparent 75%,#e2ded4 75%),' +
+      'linear-gradient(-45deg,transparent 75%,#e2ded4 75%);' +
+      'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;';
+    ctx = lerret.getContext('2d');
+    midt.appendChild(lerret);
+
+    var bunn = document.createElement('div');
+    bunn.style.cssText = 'background:#fff;border-top:1px solid #ded7c9;padding:14px 16px 18px;';
+
+    /* Modusvalg */
+    var rad1 = document.createElement('div');
+    rad1.style.cssText = 'display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;';
+    var kVisk = knapp(t('visk'), true);
+    var kHent = knapp(t('hent'), false);
+    function settModus(m){
+      modus = m;
+      kVisk.style.background = m === 'visk' ? '#1a1a1a' : '#fff';
+      kVisk.style.color      = m === 'visk' ? '#f5f5f3' : '#1a1a1a';
+      kVisk.style.border     = m === 'visk' ? 'none' : '1px solid #d8cfb8';
+      kHent.style.background = m === 'hent' ? '#1a1a1a' : '#fff';
+      kHent.style.color      = m === 'hent' ? '#f5f5f3' : '#1a1a1a';
+      kHent.style.border     = m === 'hent' ? 'none' : '1px solid #d8cfb8';
+    }
+    kVisk.onclick = function(){ settModus('visk'); };
+    kHent.onclick = function(){ settModus('hent'); };
+    rad1.appendChild(kVisk); rad1.appendChild(kHent);
+
+    function skyver(merke, min, max, verdi, endret){
+      var boks = document.createElement('div');
+      boks.style.cssText = 'max-width:420px;margin:0 auto 12px;';
+      var e = document.createElement('label');
+      e.textContent = merke;
+      e.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
+      var s = document.createElement('input');
+      s.type = 'range'; s.min = min; s.max = max; s.value = verdi;
+      s.style.cssText = 'width:100%;accent-color:#c4944a;';
+      s.oninput = function(){ endret(parseInt(s.value, 10)); };
+      boks.appendChild(e); boks.appendChild(s);
+      return boks;
+    }
+
+    var venter = null;
+    var sStram = skyver(t('stram'), 0, 200, 0, function(v){
+      terskel = v;
+      if (venter) clearTimeout(venter);
+      venter = setTimeout(tegnAlt, 60);
+    });
+    var sStorrelse = skyver(t('storrelse'), 8, 160, pensel, function(v){ pensel = v; });
+
+    var rad2 = document.createElement('div');
+    rad2.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
+    var kAngre = knapp('↩ ' + t('angre'), false);
+    kAngre.onclick = function(){ if (strok.length){ strok.pop(); tegnAlt(); } };
+    var kNull = knapp(t('nullstill'), false);
+    kNull.onclick = function(){ strok = []; terskel = 0; sStram.querySelector('input').value = 0; tegnAlt(); };
+    rad2.appendChild(kAngre); rad2.appendChild(kNull);
+
+    var hjelp = document.createElement('p');
+    hjelp.textContent = t('hjelp');
+    hjelp.style.cssText = 'margin:12px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
+
+    bunn.appendChild(rad1);
+    bunn.appendChild(sStram);
+    bunn.appendChild(sStorrelse);
+    bunn.appendChild(rad2);
+    bunn.appendChild(hjelp);
+
+    over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
+    document.body.appendChild(over);
+    settModus('visk');
+    tegnAlt();
+
+    /* ── Tegning ─────────────────────────────────────────────────────── */
+    lerret.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      try { lerret.setPointerCapture(e.pointerId); } catch(err){}
+      var f = arbeid.width / lerret.width;
+      naa = { modus: modus, r: pensel * f, punkter: [bildepunkt(e)] };
+      strok.push(naa);
+      tegner = true;
+      spillAv(arbeid.getContext('2d'), { modus: naa.modus, r: naa.r, punkter: naa.punkter });
+      vis();
+    });
+    lerret.addEventListener('pointermove', function(e){
+      if (!tegner || !naa) return;
+      e.preventDefault();
+      var p = bildepunkt(e);
+      var forrige = naa.punkter[naa.punkter.length - 1];
+      naa.punkter.push(p);
+      flekk(arbeid.getContext('2d'), naa, forrige[0], forrige[1], p[0], p[1]);
+      vis();
+    });
+    function slutt(){ tegner = false; naa = null; }
+    lerret.addEventListener('pointerup', slutt);
+    lerret.addEventListener('pointercancel', slutt);
+    lerret.addEventListener('pointerleave', slutt);
+
+    avb.onclick = function(){ over.remove(); lerret = null; };
+    fer.onclick = function(){
+      try {
+        state.portraitProcessed = arbeid.toDataURL('image/png');
+        if (typeof drawPortraitPreview === 'function') drawPortraitPreview();
+        if (typeof saveWorkingState === 'function') saveWorkingState();
+      } catch(e){}
+      over.remove(); lerret = null;
+    };
+  }
+
+  /* ── Knappen i steg 2 ──────────────────────────────────────────────── */
+  function settInn(){
+    var vert = document.getElementById('portraitPreview');
+    if (!vert || document.getElementById('pk-knapp')) return false;
+    var lerretsboks = vert.querySelector('.canvas-wrap');
+    if (!lerretsboks) return false;
+
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'pk-knapp';
+    b.style.cssText = 'display:block;margin:12px auto 0;padding:11px 20px;border-radius:10px;' +
+      'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
+    var sp = document.createElement('span'); sp.id = 'pk-knapp-tekst';
+    b.appendChild(sp);
+    b.onclick = apne;
+    lerretsboks.parentNode.insertBefore(b, lerretsboks.nextSibling);
+    tekstUt();
+    return true;
+  }
+
+  function tekstUt(){
+    var e = document.getElementById('pk-knapp-tekst');
+    if (e) e.textContent = t('knapp');
+  }
+
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._pkVakt) return;
+    var o = window.setLang;
+    var n = function(){ var s = o.apply(this, arguments); try { tekstUt(); } catch(e){} return s; };
+    n._pkVakt = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter2 = setInterval(function(){
+    forsok++;
+    var ok = settInn();
+    if (ok) foelgSpraak();
+    if (ok || forsok > 80) clearInterval(venter2);
   }, 250);
 
 })();
