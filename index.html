@@ -6109,139 +6109,185 @@ init();
 
 <!-- ═══════════ RETT OPP KANTEN ═══════════
      Den automatiske bakgrunnsfjerningen tar sjelden alt. Det blir liggende
-     igjen flak rundt haaret, en skygge langs skulderen, en bit av stolen —
-     og til naa fantes det ingen maate aa fjerne det paa. Man maatte godta
-     resultatet eller laste opp bildet paa nytt.
+     igjen flak rundt haaret, en skygge langs skulderen, en bit av stolen.
 
-     Her kommer tre ting:
-       Stram kanten  — én skyvebryter som tar bort de halvgjennomsiktige
-                       kantpikslene. Fjerner glorien rundt motivet i ett drag.
+     To verktoey:
        Visk bort     — pensel som fjerner det som ble igjen.
        Hent tilbake  — samme pensel motsatt vei, henter fram igjen det
                        maskinen tok for mye av.
 
-     Angrer bygger ikke paa lagrede bilder, men paa selve penselstrokene:
-     de spilles av paa nytt fra originalen hver gang. Det gjoer angring
-     eksakt, og koster nesten ingenting i minne — viktig paa telefon,
-     der bildene er opptil 2000 piksler. -->
+     Angring bygger paa selve penselstrokene, ikke paa lagrede bilder: de
+     spilles av paa nytt fra originalen hver gang. Eksakt, og nesten gratis
+     i minne.
+
+     ── Rettet 8. september 2026 ──
+     Foerste utgave hadde ogsaa en «Stram kanten»-bryter. Den leste ut hele
+     bildet paa nytt for hver minste bevegelse — et friskt minneomraade paa
+     16 MB hver gang, titalls av dem i loepet av ett drag — og Safari stengte
+     appen. Den er tatt helt ut. Koden leser naa ikke ut bildepunkter i det
+     hele tatt.
+     To ting til ble rettet: «Hent tilbake» tegnet hele originalbildet paa
+     nytt for hvert punkt langs strøket, og tegningen paa skjermen fulgte
+     hver eneste musebevegelse. Begge foelger naa skjermens egen takt.
+     Og skulle noe likevel svikte, lukkes retusjen pent i stedet for aa ta
+     med seg resten av appen. -->
 <script>
 (function(){
   'use strict';
 
   var T = {
     no: { knapp:'🧽 Rett opp kanten', tittel:'Rett opp kanten',
-          visk:'Visk bort', hent:'Hent tilbake', stram:'Stram kanten',
+          visk:'Visk bort', hent:'Hent tilbake',
           storrelse:'Penselstørrelse', angre:'Angre', nullstill:'Nullstill',
           ferdig:'Ferdig', avbryt:'Avbryt',
-          hjelp:'Dra over bildet for å fjerne det som ble igjen. Terningmønsteret viser hva som er gjennomsiktig.' },
+          hjelp:'Dra over bildet for å fjerne det som ble igjen. Rutemønsteret viser hva som er gjennomsiktig.',
+          feil:'Noe gikk galt i retusjen, så den ble lukket. Portrettet ditt er urørt.' },
     sv: { knapp:'🧽 Putsa kanten', tittel:'Putsa kanten',
-          visk:'Sudda bort', hent:'Hämta tillbaka', stram:'Strama åt kanten',
+          visk:'Sudda bort', hent:'Hämta tillbaka',
           storrelse:'Penselstorlek', angre:'Ångra', nullstill:'Nollställ',
           ferdig:'Klar', avbryt:'Avbryt',
-          hjelp:'Dra över bilden för att ta bort det som blev kvar. Rutmönstret visar vad som är genomskinligt.' },
+          hjelp:'Dra över bilden för att ta bort det som blev kvar. Rutmönstret visar vad som är genomskinligt.',
+          feil:'Något gick fel i retuscheringen, så den stängdes. Ditt porträtt är orört.' },
     da: { knapp:'🧽 Ret kanten til', tittel:'Ret kanten til',
-          visk:'Visk bort', hent:'Hent tilbage', stram:'Stram kanten',
+          visk:'Visk bort', hent:'Hent tilbage',
           storrelse:'Penselstørrelse', angre:'Fortryd', nullstill:'Nulstil',
           ferdig:'Færdig', avbryt:'Annuller',
-          hjelp:'Træk hen over billedet for at fjerne det, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt.' },
+          hjelp:'Træk hen over billedet for at fjerne det, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt.',
+          feil:'Noget gik galt i retoucheringen, så den blev lukket. Dit portræt er urørt.' },
     en: { knapp:'🧽 Clean up the edge', tittel:'Clean up the edge',
-          visk:'Erase', hent:'Bring back', stram:'Tighten the edge',
+          visk:'Erase', hent:'Bring back',
           storrelse:'Brush size', angre:'Undo', nullstill:'Reset',
           ferdig:'Done', avbryt:'Cancel',
-          hjelp:'Drag across the image to remove what was left behind. The checkerboard shows what is transparent.' }
+          hjelp:'Drag across the image to remove what was left behind. The checkerboard shows what is transparent.',
+          feil:'Something went wrong in the retouch, so it was closed. Your portrait is untouched.' }
   };
   function spraak(){ try { if (typeof lang === 'string' && T[lang]) return lang; } catch(e){} return 'no'; }
   function t(n){ return (T[spraak()] || T.no)[n] || T.no[n] || ''; }
 
   var F = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 
-  var basis = null;        /* AI-resultatet slik det var da vi aapnet */
-  var original = null;     /* bildet foer bakgrunnen ble fjernet */
-  var strok = [];          /* [{modus, r, punkter:[[x,y],…]}] */
-  var terskel = 0;
-  var lerret, ctx, arbeid;
+  var basis = null, original = null;
+  var arbeid = null, ac = null;
+  var lerret = null, ctx = null;
+  var strok = [];
   var tegner = false, naa = null;
   var pensel = 40, modus = 'visk';
+  var over = null;
+  var venterTegn = false, venterVis = false;
 
   function lastBilde(url){
     return new Promise(function(ok, nei){
       var i = new Image();
       i.onload = function(){ ok(i); };
-      i.onerror = nei;
+      i.onerror = function(){ nei(new Error('kunne ikke lese bildet')); };
       i.src = url;
     });
   }
 
-  /* ── Tegn alt paa nytt: basis → terskel → strok ────────────────────── */
-  function tegnAlt(){
-    if (!arbeid) return;
-    var c = arbeid.getContext('2d');
-    c.clearRect(0, 0, arbeid.width, arbeid.height);
-    c.drawImage(basis, 0, 0);
-
-    if (terskel > 0){
-      var d = c.getImageData(0, 0, arbeid.width, arbeid.height);
-      var p = d.data;
-      for (var i = 3; i < p.length; i += 4){
-        if (p[i] < terskel) p[i] = 0;
-      }
-      c.putImageData(d, 0, 0);
-    }
-
-    for (var s = 0; s < strok.length; s++) spillAv(c, strok[s]);
-    vis();
+  /* Rydder alt vekk. Store lerret og bildedata slippes eksplisitt — paa
+     iPhone og iPad er det forskjellen paa at appen lever videre og ikke. */
+  function lukk(){
+    try { if (over && over.parentNode) over.remove(); } catch(e){}
+    try { if (arbeid){ arbeid.width = 0; arbeid.height = 0; } } catch(e){}
+    over = null; lerret = null; ctx = null;
+    arbeid = null; ac = null;
+    basis = null; original = null;
+    strok = []; naa = null; tegner = false;
   }
 
-  function spillAv(c, st){
+  function nodstopp(err){
+    try { console.error('Retusj stoppet:', err); } catch(e){}
+    var melding = t('feil');
+    lukk();
+    try { alert(melding); } catch(e){}
+  }
+
+  /* ── Tegn opp igjen: originalen, saa strokene oppaa ────────────────── */
+  function tegnAlt(){
+    if (!ac || !basis) return;
+    try {
+      ac.clearRect(0, 0, arbeid.width, arbeid.height);
+      ac.drawImage(basis, 0, 0);
+      for (var s = 0; s < strok.length; s++) spillAv(strok[s]);
+      vis();
+    } catch(err){ nodstopp(err); }
+  }
+
+  /* Skjermens egen takt, ikke musas. Uten dette kunne raske klikk paa
+     Angre sette i gang flere fulle omtegninger paa rad. */
+  function planleggTegn(){
+    if (venterTegn) return;
+    venterTegn = true;
+    requestAnimationFrame(function(){ venterTegn = false; tegnAlt(); });
+  }
+
+  function spillAv(st){
     var pkt = st.punkter;
     if (!pkt.length) return;
     for (var i = 0; i < pkt.length; i++){
-      var forrige = i ? pkt[i-1] : pkt[i];
-      flekk(c, st, forrige[0], forrige[1], pkt[i][0], pkt[i][1]);
+      var f = i ? pkt[i-1] : pkt[i];
+      flekk(st, f[0], f[1], pkt[i][0], pkt[i][1]);
     }
   }
 
-  /* Myk kant paa penselen, ellers blir utklippet hakkete. */
-  function flekk(c, st, x0, y0, x1, y1){
+  /* Ett strøksegment. Viskingen har myk kant, ellers blir utklippet hakkete.
+     Hentingen samler hele segmentet i én utklippsflate og tegner originalen
+     ÉN gang — foer tegnet den hele bildet paa nytt for hvert punkt. */
+  function flekk(st, x0, y0, x1, y1){
+    if (!ac) return;
     var lengde = Math.hypot(x1-x0, y1-y0);
-    var steg = Math.max(1, st.r / 4);
-    var antall = Math.max(1, Math.ceil(lengde / steg));
-    for (var i = 0; i <= antall; i++){
-      var x = x0 + (x1-x0) * (i/antall);
-      var y = y0 + (y1-y0) * (i/antall);
-      if (st.modus === 'visk'){
-        var g = c.createRadialGradient(x, y, st.r * 0.55, x, y, st.r);
+
+    if (st.modus === 'visk'){
+      var steg = Math.max(1, st.r / 4);
+      var antall = Math.max(1, Math.ceil(lengde / steg));
+      ac.save();
+      ac.globalCompositeOperation = 'destination-out';
+      for (var i = 0; i <= antall; i++){
+        var x = x0 + (x1-x0) * (i/antall);
+        var y = y0 + (y1-y0) * (i/antall);
+        var g = ac.createRadialGradient(x, y, st.r * 0.55, x, y, st.r);
         g.addColorStop(0, 'rgba(0,0,0,1)');
         g.addColorStop(1, 'rgba(0,0,0,0)');
-        c.save();
-        c.globalCompositeOperation = 'destination-out';
-        c.fillStyle = g;
-        c.beginPath(); c.arc(x, y, st.r, 0, Math.PI*2); c.fill();
-        c.restore();
-      } else {
-        c.save();
-        c.beginPath(); c.arc(x, y, st.r, 0, Math.PI*2); c.clip();
-        c.drawImage(original, 0, 0);
-        c.restore();
+        ac.fillStyle = g;
+        ac.beginPath(); ac.arc(x, y, st.r, 0, Math.PI*2); ac.fill();
       }
+      ac.restore();
+      return;
     }
+
+    if (!original) return;
+    var steg2 = Math.max(1, st.r / 2);
+    var antall2 = Math.max(1, Math.ceil(lengde / steg2));
+    ac.save();
+    ac.beginPath();
+    for (var j = 0; j <= antall2; j++){
+      var bx = x0 + (x1-x0) * (j/antall2);
+      var by = y0 + (y1-y0) * (j/antall2);
+      ac.moveTo(bx + st.r, by);
+      ac.arc(bx, by, st.r, 0, Math.PI*2);
+    }
+    ac.clip();
+    ac.drawImage(original, 0, 0);
+    ac.restore();
   }
 
-  /* ── Vise ──────────────────────────────────────────────────────────── */
   function vis(){
-    if (!lerret) return;
+    if (!lerret || !arbeid) return;
     ctx.clearRect(0, 0, lerret.width, lerret.height);
     ctx.drawImage(arbeid, 0, 0, lerret.width, lerret.height);
+  }
+  function planleggVis(){
+    if (venterVis) return;
+    venterVis = true;
+    requestAnimationFrame(function(){ venterVis = false; vis(); });
   }
 
   function bildepunkt(e){
     var r = lerret.getBoundingClientRect();
-    var x = (e.clientX - r.left) / r.width  * arbeid.width;
-    var y = (e.clientY - r.top)  / r.height * arbeid.height;
-    return [x, y];
+    return [ (e.clientX - r.left) / r.width  * arbeid.width,
+             (e.clientY - r.top)  / r.height * arbeid.height ];
   }
 
-  /* ── Skjermen ──────────────────────────────────────────────────────── */
   function knapp(tekst, primar){
     var b = document.createElement('button');
     b.type = 'button'; b.textContent = tekst;
@@ -6251,158 +6297,158 @@ init();
   }
 
   async function apne(){
-    if (!state || !state.portraitProcessed) return;
+    if (over) return;
     try {
+      if (typeof state === 'undefined' || !state || !state.portraitProcessed) return;
       basis = await lastBilde(state.portraitProcessed);
-      original = state.portraitOriginal ? await lastBilde(state.portraitOriginal) : basis;
-    } catch(e){ return; }
+      try { original = state.portraitOriginal ? await lastBilde(state.portraitOriginal) : null; }
+      catch(e){ original = null; }
 
-    strok = []; terskel = 0; modus = 'visk';
+      strok = []; modus = 'visk';
 
-    arbeid = document.createElement('canvas');
-    arbeid.width = basis.width; arbeid.height = basis.height;
+      arbeid = document.createElement('canvas');
+      arbeid.width = basis.width; arbeid.height = basis.height;
+      ac = arbeid.getContext('2d');
+      ac.drawImage(basis, 0, 0);
 
-    var over = document.createElement('div');
-    over.id = 'pk-over';
-    over.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:#f5f5f3;' +
-      'display:flex;flex-direction:column;font:14px ' + F + ';';
+      over = document.createElement('div');
+      over.id = 'pk-over';
+      over.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:#f5f5f3;' +
+        'display:flex;flex-direction:column;font:14px ' + F + ';';
 
-    var topp = document.createElement('div');
-    topp.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1a1a1a;color:#f5f5f3;';
-    var tit = document.createElement('div');
-    tit.textContent = t('tittel');
-    tit.style.cssText = 'flex:1;font:600 16px ' + F + ';';
-    var avb = knapp(t('avbryt'), false);
-    var fer = knapp(t('ferdig'), true);
-    fer.style.background = '#c4944a'; fer.style.color = '#fff';
-    topp.appendChild(tit); topp.appendChild(avb); topp.appendChild(fer);
+      var topp = document.createElement('div');
+      topp.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1a1a1a;color:#f5f5f3;';
+      var tit = document.createElement('div');
+      tit.textContent = t('tittel');
+      tit.style.cssText = 'flex:1;font:600 16px ' + F + ';';
+      var avb = knapp(t('avbryt'), false);
+      var fer = knapp(t('ferdig'), true);
+      fer.style.background = '#c4944a'; fer.style.color = '#fff';
+      topp.appendChild(tit); topp.appendChild(avb); topp.appendChild(fer);
 
-    var midt = document.createElement('div');
-    midt.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;';
+      var midt = document.createElement('div');
+      midt.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;';
 
-    lerret = document.createElement('canvas');
-    var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
-    lerret.width = Math.round(basis.width * skala);
-    lerret.height = Math.round(basis.height * skala);
-    lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
-      'border-radius:10px;background-image:' +
-      'linear-gradient(45deg,#e2ded4 25%,transparent 25%),' +
-      'linear-gradient(-45deg,#e2ded4 25%,transparent 25%),' +
-      'linear-gradient(45deg,transparent 75%,#e2ded4 75%),' +
-      'linear-gradient(-45deg,transparent 75%,#e2ded4 75%);' +
-      'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;';
-    ctx = lerret.getContext('2d');
-    midt.appendChild(lerret);
+      lerret = document.createElement('canvas');
+      var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
+      lerret.width = Math.round(basis.width * skala);
+      lerret.height = Math.round(basis.height * skala);
+      lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
+        'border-radius:10px;background-image:' +
+        'linear-gradient(45deg,#e2ded4 25%,transparent 25%),' +
+        'linear-gradient(-45deg,#e2ded4 25%,transparent 25%),' +
+        'linear-gradient(45deg,transparent 75%,#e2ded4 75%),' +
+        'linear-gradient(-45deg,transparent 75%,#e2ded4 75%);' +
+        'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;';
+      ctx = lerret.getContext('2d');
+      midt.appendChild(lerret);
 
-    var bunn = document.createElement('div');
-    bunn.style.cssText = 'background:#fff;border-top:1px solid #ded7c9;padding:14px 16px 18px;';
+      var bunn = document.createElement('div');
+      bunn.style.cssText = 'background:#fff;border-top:1px solid #ded7c9;padding:14px 16px 18px;';
 
-    /* Modusvalg */
-    var rad1 = document.createElement('div');
-    rad1.style.cssText = 'display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;';
-    var kVisk = knapp(t('visk'), true);
-    var kHent = knapp(t('hent'), false);
-    function settModus(m){
-      modus = m;
-      kVisk.style.background = m === 'visk' ? '#1a1a1a' : '#fff';
-      kVisk.style.color      = m === 'visk' ? '#f5f5f3' : '#1a1a1a';
-      kVisk.style.border     = m === 'visk' ? 'none' : '1px solid #d8cfb8';
-      kHent.style.background = m === 'hent' ? '#1a1a1a' : '#fff';
-      kHent.style.color      = m === 'hent' ? '#f5f5f3' : '#1a1a1a';
-      kHent.style.border     = m === 'hent' ? 'none' : '1px solid #d8cfb8';
-    }
-    kVisk.onclick = function(){ settModus('visk'); };
-    kHent.onclick = function(){ settModus('hent'); };
-    rad1.appendChild(kVisk); rad1.appendChild(kHent);
+      var rad1 = document.createElement('div');
+      rad1.style.cssText = 'display:flex;gap:8px;justify-content:center;margin-bottom:14px;flex-wrap:wrap;';
+      var kVisk = knapp(t('visk'), true);
+      var kHent = knapp(t('hent'), false);
+      function settModus(m){
+        modus = m;
+        [[kVisk,'visk'],[kHent,'hent']].forEach(function(par){
+          var paa = par[1] === m;
+          par[0].style.background = paa ? '#1a1a1a' : '#fff';
+          par[0].style.color      = paa ? '#f5f5f3' : '#1a1a1a';
+          par[0].style.border     = paa ? 'none' : '1px solid #d8cfb8';
+        });
+      }
+      kVisk.onclick = function(){ settModus('visk'); };
+      kHent.onclick = function(){ if (original) settModus('hent'); };
+      if (!original){ kHent.disabled = true; kHent.style.opacity = '0.4'; }
+      rad1.appendChild(kVisk); rad1.appendChild(kHent);
 
-    function skyver(merke, min, max, verdi, endret){
-      var boks = document.createElement('div');
-      boks.style.cssText = 'max-width:420px;margin:0 auto 12px;';
-      var e = document.createElement('label');
-      e.textContent = merke;
-      e.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
-      var s = document.createElement('input');
-      s.type = 'range'; s.min = min; s.max = max; s.value = verdi;
-      s.style.cssText = 'width:100%;accent-color:#c4944a;';
-      s.oninput = function(){ endret(parseInt(s.value, 10)); };
-      boks.appendChild(e); boks.appendChild(s);
-      return boks;
-    }
+      function skyver(merke, min, max, verdi, endret){
+        var boks = document.createElement('div');
+        boks.style.cssText = 'max-width:420px;margin:0 auto 12px;';
+        var e = document.createElement('label');
+        e.textContent = merke;
+        e.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
+        var s = document.createElement('input');
+        s.type = 'range'; s.min = min; s.max = max; s.value = verdi;
+        s.style.cssText = 'width:100%;accent-color:#c4944a;';
+        s.addEventListener('input', function(){ endret(parseInt(s.value, 10)); });
+        boks.appendChild(e); boks.appendChild(s);
+        boks._skyver = s;
+        return boks;
+      }
 
-    var venter = null;
-    var sStram = skyver(t('stram'), 0, 200, 0, function(v){
-      terskel = v;
-      if (venter) clearTimeout(venter);
-      venter = setTimeout(tegnAlt, 60);
-    });
-    var sStorrelse = skyver(t('storrelse'), 8, 160, pensel, function(v){ pensel = v; });
+      var sStorrelse = skyver(t('storrelse'), 8, 160, pensel, function(v){ pensel = v; });
 
-    var rad2 = document.createElement('div');
-    rad2.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
-    var kAngre = knapp('↩ ' + t('angre'), false);
-    kAngre.onclick = function(){ if (strok.length){ strok.pop(); tegnAlt(); } };
-    var kNull = knapp(t('nullstill'), false);
-    kNull.onclick = function(){ strok = []; terskel = 0; sStram.querySelector('input').value = 0; tegnAlt(); };
-    rad2.appendChild(kAngre); rad2.appendChild(kNull);
+      var rad2 = document.createElement('div');
+      rad2.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
+      var kAngre = knapp('↩ ' + t('angre'), false);
+      kAngre.onclick = function(){ if (strok.length){ strok.pop(); planleggTegn(); } };
+      var kNull = knapp(t('nullstill'), false);
+      kNull.onclick = function(){ strok = []; planleggTegn(); };
+      rad2.appendChild(kAngre); rad2.appendChild(kNull);
 
-    var hjelp = document.createElement('p');
-    hjelp.textContent = t('hjelp');
-    hjelp.style.cssText = 'margin:12px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
+      var hjelp = document.createElement('p');
+      hjelp.textContent = t('hjelp');
+      hjelp.style.cssText = 'margin:12px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
 
-    bunn.appendChild(rad1);
-    bunn.appendChild(sStram);
-    bunn.appendChild(sStorrelse);
-    bunn.appendChild(rad2);
-    bunn.appendChild(hjelp);
+      bunn.appendChild(rad1); bunn.appendChild(sStorrelse);
+      bunn.appendChild(rad2); bunn.appendChild(hjelp);
+      over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
+      document.body.appendChild(over);
+      settModus('visk');
+      tegnAlt();
 
-    over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
-    document.body.appendChild(over);
-    settModus('visk');
-    tegnAlt();
+      lerret.addEventListener('pointerdown', function(e){
+        try {
+          e.preventDefault();
+          try { lerret.setPointerCapture(e.pointerId); } catch(err){}
+          var f = arbeid.width / lerret.width;
+          naa = { modus: modus, r: pensel * f, punkter: [bildepunkt(e)] };
+          strok.push(naa);
+          tegner = true;
+          var p = naa.punkter[0];
+          flekk(naa, p[0], p[1], p[0], p[1]);
+          planleggVis();
+        } catch(err){ nodstopp(err); }
+      });
+      lerret.addEventListener('pointermove', function(e){
+        if (!tegner || !naa) return;
+        try {
+          e.preventDefault();
+          var p = bildepunkt(e);
+          var f = naa.punkter[naa.punkter.length - 1];
+          naa.punkter.push(p);
+          flekk(naa, f[0], f[1], p[0], p[1]);
+          planleggVis();
+        } catch(err){ nodstopp(err); }
+      });
+      function slutt(){ tegner = false; naa = null; }
+      lerret.addEventListener('pointerup', slutt);
+      lerret.addEventListener('pointercancel', slutt);
+      lerret.addEventListener('pointerleave', slutt);
 
-    /* ── Tegning ─────────────────────────────────────────────────────── */
-    lerret.addEventListener('pointerdown', function(e){
-      e.preventDefault();
-      try { lerret.setPointerCapture(e.pointerId); } catch(err){}
-      var f = arbeid.width / lerret.width;
-      naa = { modus: modus, r: pensel * f, punkter: [bildepunkt(e)] };
-      strok.push(naa);
-      tegner = true;
-      spillAv(arbeid.getContext('2d'), { modus: naa.modus, r: naa.r, punkter: naa.punkter });
-      vis();
-    });
-    lerret.addEventListener('pointermove', function(e){
-      if (!tegner || !naa) return;
-      e.preventDefault();
-      var p = bildepunkt(e);
-      var forrige = naa.punkter[naa.punkter.length - 1];
-      naa.punkter.push(p);
-      flekk(arbeid.getContext('2d'), naa, forrige[0], forrige[1], p[0], p[1]);
-      vis();
-    });
-    function slutt(){ tegner = false; naa = null; }
-    lerret.addEventListener('pointerup', slutt);
-    lerret.addEventListener('pointercancel', slutt);
-    lerret.addEventListener('pointerleave', slutt);
+      avb.onclick = lukk;
+      fer.onclick = function(){
+        try {
+          var url = arbeid.toDataURL('image/png');
+          state.portraitProcessed = url;
+          if (typeof drawPortraitPreview === 'function') drawPortraitPreview();
+          if (typeof saveWorkingState === 'function') saveWorkingState();
+        } catch(err){ nodstopp(err); return; }
+        lukk();
+      };
 
-    avb.onclick = function(){ over.remove(); lerret = null; };
-    fer.onclick = function(){
-      try {
-        state.portraitProcessed = arbeid.toDataURL('image/png');
-        if (typeof drawPortraitPreview === 'function') drawPortraitPreview();
-        if (typeof saveWorkingState === 'function') saveWorkingState();
-      } catch(e){}
-      over.remove(); lerret = null;
-    };
+    } catch(err){ nodstopp(err); }
   }
 
-  /* ── Knappen i steg 2 ──────────────────────────────────────────────── */
+  /* ── Knappen i portrettsteget ──────────────────────────────────────── */
   function settInn(){
     var vert = document.getElementById('portraitPreview');
     if (!vert || document.getElementById('pk-knapp')) return false;
-    var lerretsboks = vert.querySelector('.canvas-wrap');
-    if (!lerretsboks) return false;
-
+    var boks = vert.querySelector('.canvas-wrap');
+    if (!boks) return false;
     var b = document.createElement('button');
     b.type = 'button'; b.id = 'pk-knapp';
     b.style.cssText = 'display:block;margin:12px auto 0;padding:11px 20px;border-radius:10px;' +
@@ -6410,7 +6456,7 @@ init();
     var sp = document.createElement('span'); sp.id = 'pk-knapp-tekst';
     b.appendChild(sp);
     b.onclick = apne;
-    lerretsboks.parentNode.insertBefore(b, lerretsboks.nextSibling);
+    boks.parentNode.insertBefore(b, boks.nextSibling);
     tekstUt();
     return true;
   }
@@ -6428,11 +6474,11 @@ init();
   }
 
   var forsok = 0;
-  var venter2 = setInterval(function(){
+  var venter = setInterval(function(){
     forsok++;
     var ok = settInn();
     if (ok) foelgSpraak();
-    if (ok || forsok > 80) clearInterval(venter2);
+    if (ok || forsok > 80) clearInterval(venter);
   }, 250);
 
 })();
