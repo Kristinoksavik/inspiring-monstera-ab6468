@@ -90,6 +90,16 @@
   .upload-zone .main { font-size:14px; font-weight:500; margin-bottom:4px; }
   .upload-zone .sub { font-size:12px; color:#999; }
   .upload-zone input { display:none; }
+  /* Naar en bakgrunn er valgt, krymper opplastingsfeltet til en liten lenke.
+     Da havner forhaandsvisningen der oeyet allerede er, og «Neste» kommer
+     hoeyere opp paa skjermen. Foer dette saa det ut som ingenting skjedde. */
+  #step-1.har-bg .upload-zone {
+    padding:0.7rem 1rem; border-style:solid; border-color:#e6ddc9;
+    background:#faf9f6; margin-bottom:0.9rem;
+  }
+  #step-1.har-bg .upload-zone .icon { display:none; }
+  #step-1.har-bg .upload-zone .main { font-size:13px; font-weight:500; margin:0; color:#6f6a61; }
+  #step-1.har-bg .upload-zone .sub { display:none; }
 
   /* ── Pexels-søk (portrett) ── */
   .pexels-box { margin:1rem 0 0; }
@@ -739,7 +749,7 @@
     <div class="slider-card">
       <div class="slider-row">
         <span class="slider-label" id="s3-scale">Størrelse</span>
-        <input type="range" id="scaleSlider" min="30" max="300" value="80">
+        <input type="range" id="scaleSlider" min="8" max="300" value="80">
         <span class="slider-value" id="scaleVal">80%</span>
       </div>
     </div>
@@ -2165,9 +2175,23 @@ async function updateBgPreview() {
   const canvas = document.getElementById('bgPreviewCanvas');
   if (!wrap || !canvas) return;
   const rotRow = document.getElementById('bgRotateRow');
-  if (!state.selectedBg) { _bgPreviewImg = null; wrap.classList.add('hidden'); if (rotRow) rotRow.classList.add('hidden'); return; }
+  const steg1 = document.getElementById('step-1');
+  if (!state.selectedBg) {
+    _bgPreviewImg = null; wrap.classList.add('hidden');
+    if (rotRow) rotRow.classList.add('hidden');
+    if (steg1) steg1.classList.remove('har-bg');
+    const m = document.getElementById('s1-upload-main');
+    if (m && m.dataset.orig) m.textContent = m.dataset.orig;
+    return;
+  }
   wrap.classList.remove('hidden');
   if (rotRow) rotRow.classList.remove('hidden');
+  /* Krymper opplastingsfeltet, saa bildet og «Neste» kommer hoeyere opp. */
+  if (steg1) steg1.classList.add('har-bg');
+  {
+    const m = document.getElementById('s1-upload-main');
+    if (m) { if (!m.dataset.orig) m.dataset.orig = m.textContent; m.textContent = '↻ Last opp en annen bakgrunn'; }
+  }
   try {
     const img = await loadImage(state.selectedBg);
     _bgPreviewImg = img;
@@ -2669,7 +2693,8 @@ async function runPexelsSearch() {
   { const row = document.getElementById('pexelsClearRow'); if (row) row.classList.add('hidden'); }
   setPexelsStatus(L.pexSearching || 'Søker …');
 
-  const url = PEXELS_ENDPOINT + '?query=' + encodeURIComponent(q) + '&per_page=12';
+  _pexSok = q; _pexSide = 1;
+  const url = PEXELS_ENDPOINT + '?query=' + encodeURIComponent(q) + '&per_page=24&page=1';
   let data;
   try {
     const resp = await fetch(url);
@@ -2702,12 +2727,75 @@ async function runPexelsSearch() {
   });
   const clearRow = document.getElementById('pexelsClearRow');
   if (clearRow) clearRow.classList.remove('hidden');
+  visPexelsMer(photos.length >= 24);
+}
+
+/* Flere treff. Pexels gir 24 om gangen; knappen henter neste side og legger
+   bildene under de forrige, i stedet for aa bytte dem ut. */
+let _pexSok = '', _pexSide = 1, _pexHenter = false;
+
+function visPexelsMer(finnesFlere) {
+  let rad = document.getElementById('pexelsMerRad');
+  if (!finnesFlere) { if (rad) rad.remove(); return; }
+  if (rad) return;
+  rad = document.createElement('div');
+  rad.id = 'pexelsMerRad';
+  rad.style.cssText = 'text-align:center; margin-top:10px;';
+  const kn = document.createElement('button');
+  kn.type = 'button';
+  kn.className = 'btn btn-secondary';
+  kn.style.fontSize = '13px';
+  kn.textContent = 'Vis flere bilder ↓';
+  kn.addEventListener('click', hentFlerePexels);
+  rad.appendChild(kn);
+  const grid = document.getElementById('pexelsGrid');
+  if (grid && grid.parentNode) grid.parentNode.insertBefore(rad, grid.nextSibling);
+}
+
+async function hentFlerePexels() {
+  if (_pexHenter || !_pexSok) return;
+  _pexHenter = true;
+  const rad = document.getElementById('pexelsMerRad');
+  const kn = rad && rad.querySelector('button');
+  if (kn) { kn.disabled = true; kn.textContent = 'Henter …'; }
+  try {
+    const neste = _pexSide + 1;
+    const resp = await fetch(PEXELS_ENDPOINT + '?query=' + encodeURIComponent(_pexSok)
+      + '&per_page=24&page=' + neste);
+    if (!resp.ok) throw new Error('status ' + resp.status);
+    const data = await resp.json();
+    const photos = (data && data.photos) || [];
+    const grid = document.getElementById('pexelsGrid');
+    photos.forEach((p) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pexels-thumb';
+      const img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = p.alt || '';
+      img.src = (p.src && (p.src.tiny || p.src.small)) || '';
+      btn.appendChild(img);
+      const fullUrl = (p.src && (p.src.large || p.src.medium || p.src.original)) || '';
+      btn.addEventListener('click', () => usePexelsPortrait(fullUrl, p, btn));
+      grid.appendChild(btn);
+    });
+    _pexSide = neste;
+    if (rad) rad.remove();
+    visPexelsMer(photos.length >= 24);
+  } catch (err) {
+    console.error('Kunne ikke hente flere Pexels-bilder:', err);
+    if (kn) { kn.disabled = false; kn.textContent = 'Prøv igjen'; }
+  } finally {
+    _pexHenter = false;
+  }
 }
 
 // Tømmer Pexels-resultatene så de ikke blir liggende mellom søk.
 function clearPexels() {
   const grid = document.getElementById('pexelsGrid');
   if (grid) grid.innerHTML = '';
+  { const r = document.getElementById('pexelsMerRad'); if (r) r.remove(); }
+  _pexSok = ''; _pexSide = 1;
   const q = document.getElementById('pexelsQuery');
   if (q) q.value = '';
   setPexelsStatus('');
