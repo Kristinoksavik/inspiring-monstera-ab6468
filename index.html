@@ -6484,5 +6484,204 @@ init();
 })();
 </script>
 
+<!-- ═══════════ HENT BAKGRUNN FRA DAGBOKEN ═══════════
+     Et ferdig fotomaleri er ofte den beste bakgrunnen for det neste. Til naa
+     maatte man gaa veien om dagboken, aapne komposisjonen og svare ja paa et
+     spoersmaal om aa bygge videre paa den — og da ble portrettet nullstilt
+     samtidig. Staar man i bakgrunnssteget og bare vil plukke et tidligere
+     verk, er det en omvei.
+
+     Her legges det en knapp rett under opplastingsfeltet. Den viser dagboken
+     som ruter, og det du velger blir lagt i biblioteket og valgt med det
+     samme. Velger du samme verk igjen senere, gjenbrukes bakgrunnen som
+     allerede ligger der i stedet for aa lage en ny kopi. -->
+<script>
+(function(){
+  'use strict';
+
+  var T = {
+    no: { knapp:'📔 Hent fra dagboken', tittel:'Velg fra dagboken',
+          tom:'Dagboken er tom ennå.', lukk:'Lukk', utenNavn:'Uten tittel' },
+    sv: { knapp:'📔 Hämta från dagboken', tittel:'Välj från dagboken',
+          tom:'Dagboken är tom ännu.', lukk:'Stäng', utenNavn:'Utan titel' },
+    da: { knapp:'📔 Hent fra dagbogen', tittel:'Vælg fra dagbogen',
+          tom:'Dagbogen er tom endnu.', lukk:'Luk', utenNavn:'Uden titel' },
+    en: { knapp:'📔 Take one from the diary', tittel:'Choose from the diary',
+          tom:'The diary is empty so far.', lukk:'Close', utenNavn:'Untitled' }
+  };
+  function spraak(){ try { if (typeof lang === 'string' && T[lang]) return lang; } catch(e){} return 'no'; }
+  function t(n){ return (T[spraak()] || T.no)[n] || T.no[n] || ''; }
+
+  var F = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+  var over = null;
+
+  function dagbok(){
+    try { if (state && Array.isArray(state.diary)) return state.diary; } catch(e){}
+    return [];
+  }
+
+  function lukk(){
+    try { if (over && over.parentNode) over.remove(); } catch(e){}
+    over = null;
+  }
+
+  /* Legger verket i bakgrunnsbiblioteket og velger det. Har det vaert hentet
+     inn foer, brukes den bakgrunnen som allerede finnes — ellers ville
+     biblioteket fylles opp med kopier av det samme. */
+  async function velg(post){
+    try {
+      var fantes = null;
+      if (state && Array.isArray(state.bgLibrary)){
+        for (var i = 0; i < state.bgLibrary.length; i++){
+          if (state.bgLibrary[i] && state.bgLibrary[i].fraDagbok === post.id){
+            fantes = state.bgLibrary[i]; break;
+          }
+        }
+      }
+
+      if (fantes){
+        lukk();
+        selectBackground(fantes.id, true);
+        return;
+      }
+
+      var ny = {
+        id: 'bg_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        dataUrl: post.dataUrl,
+        name: (post.title || t('utenNavn')) + '.jpg',
+        created: Date.now(),
+        fraDagbok: post.id
+      };
+      state.bgLibrary.unshift(ny);
+      lukk();
+      selectBackground(ny.id, true);
+      try { if (typeof renderLibrary === 'function') renderLibrary(); } catch(e){}
+      try { await dbPut('backgrounds', ny); } catch(e){
+        /* Lagringen kan svikte paa full enhet. Bakgrunnen virker likevel naa,
+           og lagringsvakten sier fra om at den ikke ble lagret. */
+      }
+    } catch(e){
+      try { console.error('Kunne ikke hente fra dagboken:', e); } catch(e2){}
+      lukk();
+    }
+  }
+
+  function apne(){
+    if (over) return;
+    var poster = dagbok();
+
+    over = document.createElement('div');
+    over.id = 'db-over';
+    over.style.cssText = 'position:fixed;inset:0;z-index:2147483090;background:#f5f5f3;' +
+      'display:flex;flex-direction:column;font:14px ' + F + ';';
+
+    var topp = document.createElement('div');
+    topp.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1a1a1a;color:#f5f5f3;';
+    var tit = document.createElement('div');
+    tit.textContent = t('tittel');
+    tit.style.cssText = 'flex:1;font:600 16px ' + F + ';';
+    var x = document.createElement('button');
+    x.type = 'button'; x.textContent = t('lukk');
+    x.style.cssText = 'padding:9px 16px;border-radius:9px;border:none;background:#fff;color:#1a1a1a;' +
+      'font:600 14px ' + F + ';cursor:pointer;';
+    x.onclick = lukk;
+    topp.appendChild(tit); topp.appendChild(x);
+
+    var midt = document.createElement('div');
+    midt.style.cssText = 'flex:1;overflow-y:auto;padding:16px;';
+
+    if (!poster.length){
+      var tom = document.createElement('p');
+      tom.textContent = t('tom');
+      tom.style.cssText = 'text-align:center;color:#8a857b;margin-top:40px;font:15px ' + F + ';';
+      midt.appendChild(tom);
+    } else {
+      var rutenett = document.createElement('div');
+      rutenett.style.cssText = 'display:grid;gap:10px;max-width:640px;margin:0 auto;' +
+        'grid-template-columns:repeat(auto-fill,minmax(120px,1fr));';
+      poster.forEach(function(post){
+        if (!post || !post.dataUrl) return;
+        var kort = document.createElement('button');
+        kort.type = 'button';
+        kort.style.cssText = 'padding:0;border:2px solid transparent;border-radius:10px;overflow:hidden;' +
+          'background:#e8e3d8;cursor:pointer;display:block;width:100%;aspect-ratio:1;';
+        var b = document.createElement('img');
+        b.src = post.dataUrl;
+        b.alt = post.title || t('utenNavn');
+        b.loading = 'lazy';
+        b.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+        kort.appendChild(b);
+        kort.onclick = function(){ velg(post); };
+        rutenett.appendChild(kort);
+      });
+      midt.appendChild(rutenett);
+    }
+
+    over.appendChild(topp); over.appendChild(midt);
+    document.body.appendChild(over);
+  }
+
+  /* ── Knappen i bakgrunnssteget ─────────────────────────────────────── */
+  function settInn(){
+    var sone = document.getElementById('bgUploadZone');
+    if (!sone || document.getElementById('db-knapp')) return false;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'db-knapp';
+    b.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:12px 18px;border-radius:10px;' +
+      'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
+    var sp = document.createElement('span'); sp.id = 'db-knapp-tekst';
+    b.appendChild(sp);
+    b.onclick = apne;
+    sone.parentNode.insertBefore(b, sone.nextSibling);
+    tekstUt();
+    synlighet();
+    return true;
+  }
+
+  /* Tom dagbok, ingen knapp. Den skal ikke love noe den ikke har. */
+  function synlighet(){
+    var b = document.getElementById('db-knapp');
+    if (b) b.style.display = dagbok().length ? 'block' : 'none';
+  }
+
+  function tekstUt(){
+    var e = document.getElementById('db-knapp-tekst');
+    if (e) e.textContent = t('knapp');
+  }
+
+  /* Appen kaller denne hver gang dagboken endrer seg. */
+  function foelgDagbok(){
+    if (typeof window.updateDiaryShortcut !== 'function' || window.updateDiaryShortcut._db) return;
+    var o = window.updateDiaryShortcut;
+    var n = function(){ var s = o.apply(this, arguments); try { synlighet(); } catch(e){} return s; };
+    n._db = true; window.updateDiaryShortcut = n;
+  }
+
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._dbVakt) return;
+    var o = window.setLang;
+    var n = function(){ var s = o.apply(this, arguments); try { tekstUt(); } catch(e){} return s; };
+    n._dbVakt = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    var ok = settInn();
+    if (ok){ foelgDagbok(); foelgSpraak(); }
+    if (ok || forsok > 80) clearInterval(venter);
+  }, 250);
+
+  /* Dagboken fylles etter oppstart, saa knappen sjekkes en stund til. */
+  var teller = 0;
+  var puls = setInterval(function(){
+    teller++;
+    synlighet();
+    if (teller > 20) clearInterval(puls);
+  }, 500);
+
+})();
+</script>
+
 </body>
 </html>
