@@ -2067,6 +2067,27 @@ function setLang(l) {
 // ═══════════════════════════════════════════════════════════════════════════
 // FILE READING HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
+/* Sjekker om et bilde har gjennomsiktige omraader. Et utklippet portrett fra
+   Canva eller remove.bg har stor gjennomsiktig bakgrunn — lagres det som JPEG,
+   blir den bakgrunnen SVART, fordi JPEG ikke har alfakanal. Derfor maa slike
+   bilder lagres som PNG. Vanlige fotografier lagres fortsatt som JPEG, som er
+   mye mindre. Sjekken gjoeres paa en liten nedskalert kopi, saa den er rask. */
+function harGjennomsiktighet(img) {
+  try {
+    const n = 96;
+    const w = Math.max(1, Math.min(n, img.naturalWidth || img.width || n));
+    const h = Math.max(1, Math.min(n, img.naturalHeight || img.height || n));
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < d.length; i += 4) { if (d[i] < 250) return true; }
+    return false;
+  } catch (e) { return false; }
+}
+
 function fileToDataUrl(file, maxDim = 2000) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -2080,8 +2101,12 @@ function fileToDataUrl(file, maxDim = 2000) {
         }
         const c = document.createElement('canvas');
         c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(c.toDataURL('image/jpeg', 0.88));
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        /* PNG bare naar bildet faktisk har gjennomsiktighet — ellers JPEG. */
+        const gjennomsiktig = harGjennomsiktighet(img);
+        resolve(gjennomsiktig ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.88));
       };
       img.onerror = () => reject(new Error('Bildet kunne ikke dekodes (mulig HEIC eller skadet fil)'));
       img.src = e.target.result;
@@ -2511,8 +2536,14 @@ async function bakePortraitCrop() {
   const S = Math.round(Math.min(img.width, img.height));
   const c = document.createElement('canvas');
   c.width = S; c.height = S;
-  drawPortraitCropInto(c.getContext('2d'), img, S, state.portraitPan.x, state.portraitPan.y);
-  state.portraitProcessed = c.toDataURL('image/jpeg', 0.9);
+  const cctx = c.getContext('2d');
+  cctx.clearRect(0, 0, S, S);
+  drawPortraitCropInto(cctx, img, S, state.portraitPan.x, state.portraitPan.y);
+  /* Samme regel her: er portrettet utklippet, skal beskjaeringen ikke gjoere
+     den gjennomsiktige bakgrunnen svart. */
+  state.portraitProcessed = harGjennomsiktighet(img)
+    ? c.toDataURL('image/png')
+    : c.toDataURL('image/jpeg', 0.9);
   _portraitImgCache = { src: null, img: null };
 }
 
