@@ -23,11 +23,14 @@ exports.handler = async (event) => {
   }
 
   // Begrens per_page til et fornuftig tak.
-  const perPage = Math.min(Math.max(parseInt(params.per_page, 10) || 12, 1), 30);
+  const perPage = Math.min(Math.max(parseInt(params.per_page, 10) || 12, 1), 80);
+  // Side, saa «Vis flere» kan hente neste pulje i stedet for de samme igjen.
+  const page = Math.min(Math.max(parseInt(params.page, 10) || 1, 1), 50);
 
   const url = 'https://api.pexels.com/v1/search'
     + '?query=' + encodeURIComponent(query)
-    + '&per_page=' + perPage;
+    + '&per_page=' + perPage
+    + '&page=' + page;
 
   try {
     const resp = await fetch(url, { headers: { Authorization: key } });
