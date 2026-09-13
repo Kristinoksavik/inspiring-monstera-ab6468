@@ -5127,22 +5127,32 @@ init();
       melding('Nettleseren stoppet den nye fanen. Tillat vinduer fra denne siden, eller last ned bildet og legg det inn i Markedshjelpen selv.', true);
       return;
     }
-    var sendt = false;
+    var mottatt = false, forsok = 0, klokke = null;
 
-    function paaSvar(e){
-      if(e.origin !== PRISLISTE) return;
-      if(!e.data) return;
-      if(e.data.type === 'cba-klar' && !sendt){
-        sendt = true;
+    function send(){
+      try{
         vindu.postMessage({
           type: 'cba-maleri',
           bilde: dataUrl,
           tittel: tittel || '',
           teknikk: 'Fotomaleri på lerret'
         }, PRISLISTE);
-      }
+      }catch(err){}
+    }
+
+    function slutt(){
+      if(klokke) clearInterval(klokke);
+      klokke = null;
+      window.removeEventListener('message', paaSvar);
+    }
+
+    function paaSvar(e){
+      if(e.origin !== PRISLISTE) return;
+      if(!e.data) return;
+      if(e.data.type === 'cba-klar') send();
       if(e.data.type === 'cba-mottatt'){
-        window.removeEventListener('message', paaSvar);
+        mottatt = true;
+        slutt();
         melding('Bildet ligger nå i Markedshjelpen. Fyll inn høyde og bredde der.');
       }
     }
@@ -5150,9 +5160,21 @@ init();
     window.addEventListener('message', paaSvar);
     melding('Åpner Markedshjelpen …');
 
+    /* Vi kan ikke bare vente paa at Markedshjelpen sier fra at den er klar.
+       Enkelte nettlesere kutter baandet tilbake hit naar en ny fane aapnes,
+       og da kommer det varselet aldri — bildet blir staaende her, mens det
+       FORRIGE maleriet ligger igjen i Markedshjelpen og ser ut som det nye.
+       Derfor sendes bildet ogsaa av seg selv, gang paa gang, til den nye
+       fanen kvitterer. Markedshjelpen tar bare imot det aller foerste. */
+    klokke = setInterval(function(){
+      forsok++;
+      if(mottatt || forsok > 14){ if(klokke) clearInterval(klokke); klokke = null; return; }
+      send();
+    }, 700);
+
     setTimeout(function(){
-      if(sendt) return;
-      window.removeEventListener('message', paaSvar);
+      if(mottatt) return;
+      slutt();
       melding('Fikk ikke kontakt med Markedshjelpen. Last ned bildet her og legg det inn der på vanlig måte.', true);
     }, 20000);
   }
@@ -6716,6 +6738,150 @@ init();
 
 })();
 </script>
+
+
+<!-- ══ kbo-tilbakemelding-blokk ═══════════════════════════════════════════════
+     Liten, dempet knapp nede i hjoernet. Den kommer foerst etter
+     halvannet minutt i appen, og bare hvis den ikke er lukket foer.
+     Lukker man den, er den borte i 45 dager i den nettleseren.
+     Lenken aapner tilbakemeldingsskjemaet med riktig app fylt ut.
+     Slettes trygt: hele blokken fra kommentaren over til den under.
+     ═════════════════════════════════════════════════════════════ -->
+<style>
+#kbo-tbm{
+  position:fixed; z-index:2147483000;
+  right:14px; bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+  max-width:290px; display:none;
+  background:#FFFDF9; border:1px solid #E3CE9B; border-radius:13px;
+  box-shadow:0 6px 22px rgba(60,50,30,.16);
+  font:14.5px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  color:#4E483E; padding:13px 15px 13px 16px;
+}
+#kbo-tbm.inne{ display:block; animation:kbo-tbm-inn .45s ease both; }
+@keyframes kbo-tbm-inn{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:none;} }
+#kbo-tbm p{ margin:0 26px 7px 0; }
+#kbo-tbm a{
+  display:inline-block; color:#8A6A2A; font-weight:600; text-decoration:underline;
+  text-underline-offset:2px;
+}
+#kbo-tbm button{
+  position:absolute; top:6px; right:7px; width:26px; height:26px;
+  border:0; background:none; cursor:pointer; color:#A2917A;
+  font:17px/1 inherit; border-radius:7px; padding:0;
+}
+#kbo-tbm button:hover{ background:#F3EADA; color:#4E483E; }
+@media (max-width:430px){
+  #kbo-tbm{ left:12px; right:12px; max-width:none; }
+}
+@media print{ #kbo-tbm{ display:none !important; } }
+</style>
+<div id="kbo-tbm" role="note">
+  <button type="button" id="kbo-tbm-lukk" aria-label="Lukk">&times;</button>
+  <p id="kbo-tbm-tekst">Er det noe som stopper opp, eller noe du savner her?</p>
+  <a id="kbo-tbm-lenke" href="https://app-tilbakemelding.netlify.app/?app=fotomaleri-light" target="_blank" rel="noopener">Si fra til Kristin &rarr;</a>
+</div>
+<script>
+(function(){
+  'use strict';
+  /* To ting maa vaere sanne foer boksen vises:
+       1. Det har gaatt halvannet minutt i appen.
+       2. Det er klikket minst 15 ganger.
+     Nummer to er det som skiller «er faktisk i gang med noe» fra
+     «staar paa tilgangskode-skjermen». Ingen skal bli spurt om hva som
+     stoppet opp foer de har kommet inn. */
+  var NOKKEL = 'kbo-tilbakemelding-lukket';
+  var VENT   = 90000;            /* halvannet minutt */
+  var KLIKK  = 15;               /* faktisk bruk, ikke bare innlogging */
+  var HVILE  = 45*24*60*60*1000; /* 45 dager, naar den lukkes med kryss */
+  var KORT   =  3*24*60*60*1000; /* 3 dager, naar den bare blir staaende */
+  var STAAR  = 25000;            /* saa lenge blir den staaende av seg selv */
+
+  function lest(){
+    try{ return Number(localStorage.getItem(NOKKEL) || 0); }catch(e){ return 0; }
+  }
+  function skriv(hvile){
+    try{
+      localStorage.setItem(NOKKEL, String(Date.now()));
+      localStorage.setItem(NOKKEL + '-hvile', String(hvile || HVILE));
+    }catch(e){}
+  }
+  function hviler(){
+    var sist = lest();
+    if(!sist) return false;
+    var h = HVILE;
+    try{ h = Number(localStorage.getItem(NOKKEL + '-hvile')) || HVILE; }catch(e){}
+    return (Date.now() - sist) < h;
+  }
+
+  /* Appen finnes ogsaa paa svensk, dansk og engelsk. Er nettleseren
+     ikke skandinavisk, blir boksen engelsk. */
+  try{
+    var spraak = (navigator.language || 'no').toLowerCase();
+    if(!/^(no|nb|nn|sv|da)/.test(spraak)){
+      document.getElementById('kbo-tbm-tekst').textContent =
+        'Is something not working, or missing here?';
+      document.getElementById('kbo-tbm-lenke').innerHTML = 'Tell Kristin &rarr;';
+    }
+  }catch(e){}
+
+  var boks = document.getElementById('kbo-tbm');
+  if(!boks) return;
+
+  document.getElementById('kbo-tbm-lukk').addEventListener('click', function(e){
+    e.stopPropagation();
+    boks.classList.remove('inne');
+    boks.style.display = 'none';
+    skriv(HVILE);
+  });
+
+  /* Trykker de paa lenka, skal den ikke komme igjen med en gang heller. */
+  boks.querySelector('a').addEventListener('click', function(){ skriv(HVILE); });
+
+  if(hviler()) return;
+
+  var klikk = 0, tiden = false, vist = false;
+
+  /* Appene har en tilgangsport som ligger over alt annet til koden er
+     tastet inn. Saa lenge den staar der, er ingen «inne i appen», og da
+     skal boksen ikke vises. Navnene under er de portene appene bruker. */
+  var PORTER = ['#cbaGate', '#cbaGateBoot', '#lock-input'];
+  function laast(){
+    for (var i = 0; i < PORTER.length; i++){
+      var p = document.querySelector(PORTER[i]);
+      if (!p) continue;
+      var s = getComputedStyle(p);
+      if (s.display !== 'none' && s.visibility !== 'hidden' && p.offsetParent !== null) return true;
+      if (s.display !== 'none' && s.position === 'fixed' && p.getBoundingClientRect().height > 0) return true;
+    }
+    return false;
+  }
+
+  function kanskjeVis(){
+    if(vist || !tiden || klikk < KLIKK) return;
+    if(laast()) return;
+    if(hviler()) return;
+    vist = true;
+    boks.classList.add('inne');
+    /* Den skal aldri bli staaende og dekke noe. Blir den ignorert,
+       trekker den seg tilbake selv, og kommer igjen om tre dager. */
+    setTimeout(function(){
+      if(!boks.classList.contains('inne')) return;
+      boks.classList.remove('inne');
+      boks.style.display = 'none';
+      skriv(KORT);
+    }, STAAR);
+  }
+
+  document.addEventListener('pointerdown', function(e){
+    if(boks.contains(e.target)) return;
+    klikk++;
+    kanskjeVis();
+  }, true);
+
+  setTimeout(function(){ tiden = true; kanskjeVis(); }, VENT);
+})();
+</script>
+<!-- ══ slutt kbo-tilbakemelding-blokk ══════════════════════════════ -->
 
 </body>
 </html>
