@@ -196,8 +196,11 @@
 
   /* ── Filter chips ──────────────────────────────────────────────────────── */
   .filter-grid {
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(90px, 1fr));
-    gap:10px; margin-bottom:1rem;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(54px, 1fr));
+    gap:6px; margin-bottom:0.6rem;
+  }
+  @media (min-width:520px){
+    .filter-grid { grid-template-columns:repeat(auto-fill, minmax(62px, 1fr)); gap:7px; }
   }
   .filter-chip {
     cursor:pointer; border:2px solid transparent; border-radius:10px;
@@ -206,10 +209,12 @@
   .filter-chip.selected { border-color:#1a1a1a; }
   .filter-chip .preview { width:100%; aspect-ratio:1; display:block; }
   .filter-chip .label {
-    position:absolute; bottom:0; left:0; right:0; font-size:11px; padding:4px 6px;
-    background:linear-gradient(transparent, rgba(0,0,0,0.75)); color:#fff;
-    text-align:center; font-weight:500;
+    position:absolute; bottom:0; left:0; right:0; font-size:9.5px; padding:3px 2px 3px;
+    background:linear-gradient(transparent, rgba(0,0,0,0.78)); color:#fff;
+    text-align:center; font-weight:500; line-height:1.15;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
+  .filter-chip { border-width:2px; border-radius:8px; }
 
   /* ── Canvas / preview area ─────────────────────────────────────────────── */
   .canvas-wrap {
@@ -706,7 +711,7 @@
 
     <div id="portraitPreview" class="hidden" style="margin-top:1rem;">
       <h2 id="s2-result-title">Resultat</h2>
-      <div class="canvas-wrap" style="aspect-ratio:1; max-width:280px; margin: 0.5rem auto 0;">
+      <div class="canvas-wrap" style="aspect-ratio:1; max-width:360px; margin: 0.5rem auto 0;">
         <canvas id="portraitCanvas"></canvas>
       </div>
       <div id="s2-crop-hint" class="hidden" style="text-align:center; font-size:12px; color:#888; margin-top:6px;">Dra for å velge utsnitt</div>
@@ -731,10 +736,10 @@
     <h2 id="s3-title">Sett sammen og juster</h2>
     <p class="step-sub" id="s3-sub">Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.</p>
 
-    <h2 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;" id="s3-mood-label">Stemning</h2>
+    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;" id="s3-mood-label">Stemning</h2>
     <div class="filter-grid" id="filterGrid"></div>
 
-    <h2 style="font-size:13px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:16px 0 8px;" id="s3-effect-label">Effekt på portrettet</h2>
+    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;" id="s3-effect-label">Effekt på portrettet</h2>
     <div class="filter-grid" id="effectGrid"></div>
 
     <div class="canvas-wrap" id="mainCanvasWrap">
@@ -1509,6 +1514,7 @@ const state = {
   bgRotation: 0,            // bakgrunnsrotasjon i grader (0/90/180/270)
   portraitOriginal: null,   // dataUrl of uploaded portrait
   portraitProcessed: null,  // dataUrl with bg removed
+  portraitMask: null,       // viskemaske ved siden av portrettet (PNG, portrettets egen størrelse)
   skipPortrait: false,      // user chose "continue without portrait"
   isProcessingBg: false,
   filter: 'none',
@@ -1545,21 +1551,54 @@ const EFFECTS = ['none','oil','poster','bw'];
 
 // Bygger en effekt-versjon av portrettet (temp-canvas + piksel-effekt), cachet.
 // effect utelatt = bruk state.effect (preview/bake); eksport sender inn meta.effect.
-let _effCache = { src: null, effect: null, canvas: null };
-function portraitDrawable(p, effect) {
+let _effCache = { src: null, effect: null, mask: null, canvas: null };
+
+// Viskemasken. En PNG i portrettets egen oppløsning: hvitt = behold, borte =
+// visket bort. Den ligger ved siden av bildet, aldri inni det, så originalen
+// kan hentes tilbake når som helst. Bildet må være avkodet FØR portraitDrawable
+// kalles, derfor dette lille hurtiglageret og ensureMaskImage foran hver
+// tegning. Er masken ikke klar, tegnes portrettet umaskert denne ene gangen.
+let _maskImgCache = { src: null, img: null };
+function maskImageFor(url) {
+  if (!url) return null;
+  return (_maskImgCache.src === url) ? _maskImgCache.img : null;
+}
+async function ensureMaskImage(url) {
+  if (!url) { _maskImgCache = { src: null, img: null }; return null; }
+  if (_maskImgCache.src === url) return _maskImgCache.img;
+  try {
+    const img = await loadImage(url);
+    _maskImgCache = { src: url, img };
+    return img;
+  } catch (e) { return null; }
+}
+
+function portraitDrawable(p, effect, mask) {
   if (effect === undefined) effect = state.effect;
-  if (!p || !effect || effect === 'none') return p;
-  if (_effCache.canvas && _effCache.src === p && _effCache.effect === effect) return _effCache.canvas;
+  if (mask === undefined) mask = state.portraitMask || null;
+  if (!p) return p;
+  const maskImg = maskImageFor(mask);
+  const harEffekt = !!(effect && effect !== 'none');
+  if (!harEffekt && !maskImg) return p;
+  if (_effCache.canvas && _effCache.src === p && _effCache.effect === effect &&
+      _effCache.mask === (maskImg ? mask : null)) return _effCache.canvas;
   const c = document.createElement('canvas');
   c.width = p.width; c.height = p.height;
   const cx = c.getContext('2d');
   cx.drawImage(p, 0, 0);
-  try {
-    const id = cx.getImageData(0, 0, c.width, c.height);
-    applyPortraitEffect(id, effect);
-    cx.putImageData(id, 0, 0);
-  } catch (e) { return p; }
-  _effCache = { src: p, effect: effect, canvas: c };
+  if (harEffekt) {
+    try {
+      const id = cx.getImageData(0, 0, c.width, c.height);
+      applyPortraitEffect(id, effect);
+      cx.putImageData(id, 0, 0);
+    } catch (e) { if (!maskImg) return p; }
+  }
+  if (maskImg) {
+    cx.globalCompositeOperation = 'destination-in';
+    cx.drawImage(maskImg, 0, 0, c.width, c.height);
+    cx.globalCompositeOperation = 'source-over';
+  }
+  _effCache = { src: p, effect: effect, mask: (maskImg ? mask : null), canvas: c };
   return c;
 }
 
@@ -1730,6 +1769,7 @@ function collectWorkingState() {
     bgRotation: state.bgRotation || 0,
     portraitOriginal: state.portraitOriginal,
     portraitProcessed: state.portraitProcessed,
+    portraitMask: state.portraitMask || null,
     skipPortrait: state.skipPortrait,
     portraitPan: { ...state.portraitPan },
     portraitKept: state.portraitKept || false,
@@ -1796,6 +1836,7 @@ async function restoreWorkingState() {
   state.bgRotation = saved.bgRotation || 0;
   state.portraitOriginal = saved.portraitOriginal || null;
   state.portraitProcessed = saved.portraitProcessed || null;
+  state.portraitMask = saved.portraitMask || null;
   state.skipPortrait = !!saved.skipPortrait;
   state.portraitPan = saved.portraitPan || { x: 0.5, y: 0.5 };
   state.portraitKept = !!saved.portraitKept;
@@ -1886,6 +1927,7 @@ function newComposition() {
   state.editingId = null;
   state.portraitOriginal = null;
   state.portraitProcessed = null;
+  state.portraitMask = null;
   state.portraitKept = false;
   state.portraitPan = { x: 0.5, y: 0.5 };
   state.skipPortrait = false;
@@ -1943,6 +1985,7 @@ function newComposition() {
 // already uploaded, flags the skip, and advances to the mood/compose step.
 function skipPortrait() {
   state.skipPortrait = true;
+  state.portraitMask = null;
   state.portraitOriginal = null;
   state.portraitProcessed = null;
   state.portraitKept = false;
@@ -2555,7 +2598,9 @@ async function drawPortraitPreview() {
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d');
   const hint = document.getElementById('s2-crop-hint');
-  if (state.portraitKept && state.portraitOriginal) {
+  // Har man visket, skal vinduet vise viskingen — ikke den urørte originalen.
+  // Utsnittet kan fortsatt dras; det bakes på nytt og masken legges oppå.
+  if (state.portraitKept && state.portraitOriginal && !state.portraitMask) {
     // Live utsnitt-editor: kvadratisk cover+pan fra originalen. Dra for å velge.
     const img = await loadImage(state.portraitOriginal);
     _portraitCropImg = img;
@@ -2568,6 +2613,7 @@ async function drawPortraitPreview() {
   canvas.classList.remove('croppable');
   if (hint) hint.classList.add('hidden');
   const img = await loadImage(state.portraitProcessed);
+  await ensureMaskImage(state.portraitMask);
   // checkerboard (for gjennomsiktige AI-utklipp)
   ctx.fillStyle = '#fafafa';
   ctx.fillRect(0, 0, size, size);
@@ -2581,7 +2627,9 @@ async function drawPortraitPreview() {
   }
   const r = Math.min(size / img.width, size / img.height);
   const w = img.width * r, h = img.height * r;
-  ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  // 'none' her: portretteffekten hoerer hjemme i komposisjonen, men viskingen
+  // skal vises ogsaa i dette vinduet.
+  ctx.drawImage(portraitDrawable(img, 'none'), (size - w) / 2, (size - h) / 2, w, h);
 }
 
 // Dra i portrett-forhåndsvisningen for å velge utsnitt (kun «behold hele bildet»).
@@ -2625,6 +2673,7 @@ document.getElementById('portraitUpload').addEventListener('change', async (e) =
   try {
     const dataUrl = await fileToDataUrl(file, 1400);
     state.portraitOriginal = dataUrl;
+    state.portraitMask = null;   // et nytt bilde gjoer den gamle viskingen ugyldig
     state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     // Ask the user how to use the image before doing anything heavy.
@@ -2848,6 +2897,7 @@ async function usePexelsPortrait(fullUrl, photo, btnEl) {
     // Samme skalerings-/dataURL-vei som en opplastet fil.
     const dataUrl = await fileToDataUrl(blob, 1400);
     state.portraitOriginal = dataUrl;
+    state.portraitMask = null;   // et nytt bilde gjoer den gamle viskingen ugyldig
     state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     setPexelsStatus('');
@@ -2990,6 +3040,7 @@ async function renderMainCanvas() {
   const p = state.portraitProcessed
     ? await getCachedImage(state.portraitProcessed, _portraitImgCache)
     : null;
+  await ensureMaskImage(state.portraitMask);
 
   // Guard against a stale async frame: if state changed sources mid-flight,
   // a newer render will have run, so bail out.
@@ -3304,6 +3355,7 @@ async function renderTextCanvas() {
   // Portrait
   if (state.portraitProcessed) {
     const p = await loadImage(state.portraitProcessed);
+    await ensureMaskImage(state.portraitMask);
     const portraitW = SIZE * state.scale;
     const r = portraitW / p.width;
     const portraitH = p.height * r;
@@ -3475,6 +3527,7 @@ async function renderSigCanvas() {
   if (state.portraitProcessed) {
     const p = await loadImage(state.portraitProcessed);
     if (myToken !== _sigRenderToken) return; // abandon stale render
+    await ensureMaskImage(state.portraitMask);
     const portraitW = SIZE * state.scale;
     const r = portraitW / p.width;
     const portraitH = p.height * r;
@@ -3657,6 +3710,7 @@ async function saveAndContinue() {
     const p = (_portraitImgCache.src === state.portraitProcessed && _portraitImgCache.img)
       ? _portraitImgCache.img
       : await loadImage(state.portraitProcessed);
+    await ensureMaskImage(state.portraitMask);
     const portraitW = SIZE * state.scale;
     const r = portraitW / p.width;
     const portraitH = p.height * r;
@@ -3705,6 +3759,7 @@ async function saveAndContinue() {
     bgRotation: state.bgRotation || 0,
     portraitProcessed: state.portraitProcessed,
     portraitOriginal: state.portraitOriginal,
+    portraitMask: state.portraitMask || null,
     skipPortrait: state.skipPortrait,
     portraitPan: { ...state.portraitPan },
     portraitKept: state.portraitKept || false,
@@ -3975,6 +4030,7 @@ function editCurrentItem() {
   state.bgRotation = m.bgRotation || 0;
   state.portraitProcessed = m.portraitProcessed;
   state.portraitOriginal = m.portraitOriginal || m.portraitProcessed;
+  state.portraitMask = m.portraitMask || null;
   state.skipPortrait = !!m.skipPortrait;
   state.portraitPan = m.portraitPan || { x: 0.5, y: 0.5 };
   state.portraitKept = !!m.portraitKept;
@@ -4058,6 +4114,7 @@ async function offerRemix(item) {
   // Clear portrait so user uploads a new one
   state.portraitOriginal = null;
   state.portraitProcessed = null;
+  state.portraitMask = null;
   state.portraitKept = false;
   state.portraitPan = { x: 0.5, y: 0.5 };
   state.skipPortrait = false;
@@ -4147,13 +4204,14 @@ async function downloadPortraitOnly() {
     octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = 'high';
     // INGEN bakgrunnsfyll → gjennomsiktig
     const p = await loadImage(m.portraitProcessed);
+    await ensureMaskImage(m.portraitMask || null);
     const portraitW = size * (m.scale || 0.8);
     const r = portraitW / p.width;
     const portraitH = p.height * r;
     const cx = size * (m.portraitPos ? m.portraitPos.x : 0.5);
     const cy = size * (m.portraitPos ? m.portraitPos.y : 0.55);
     octx.globalAlpha = (m.opacity != null) ? m.opacity : 1.0;
-    octx.drawImage(portraitDrawable(p, m.effect), cx - portraitW/2, cy - portraitH/2, portraitW, portraitH);
+    octx.drawImage(portraitDrawable(p, m.effect, m.portraitMask || null), cx - portraitW/2, cy - portraitH/2, portraitW, portraitH);
     octx.globalAlpha = 1.0;
     const dataUrl = out.toDataURL('image/png'); // PNG bevarer gjennomsiktighet
     const fname = 'portrett_' + new Date(item.created).toISOString().slice(0,10) + '_' + size + '.png';
@@ -4465,13 +4523,14 @@ async function rerenderAtSize(meta, SIZE) {
   // Portrait
   if (meta.portraitProcessed) {
     const p = await loadImage(meta.portraitProcessed);
+    await ensureMaskImage(meta.portraitMask || null);
     const portraitW = SIZE * (meta.scale || 0.8);
     const r = portraitW / p.width;
     const portraitH = p.height * r;
     const cx = SIZE * (meta.portraitPos ? meta.portraitPos.x : 0.5);
     const cy = SIZE * (meta.portraitPos ? meta.portraitPos.y : 0.55);
     octx.globalAlpha = (meta.opacity != null) ? meta.opacity : 1.0;
-    octx.drawImage(portraitDrawable(p, meta.effect), cx - portraitW/2, cy - portraitH/2, portraitW, portraitH);
+    octx.drawImage(portraitDrawable(p, meta.effect, meta.portraitMask || null), cx - portraitW/2, cy - portraitH/2, portraitW, portraitH);
     octx.globalAlpha = 1.0;
   }
 
@@ -6155,615 +6214,6 @@ init();
 })();
 </script>
 
-<!-- ═══════════ VISKELÆR ═══════════
-     Den automatiske bakgrunnsfjerningen tar sjelden alt. Det blir liggende
-     igjen flak rundt haaret, en skygge langs skulderen, en bit av stolen.
-     Her kan det viskes bort for haand.
-
-     Ett verktoey, én bryter: penselen og stoerrelsen paa den. Kanten er myk,
-     saa utklippet ikke faar harde skjoeter der man har dratt.
-
-     Angring bygger paa selve penselstrokene, ikke paa lagrede bilder: de
-     spilles av paa nytt fra originalen hver gang. Eksakt, og nesten gratis
-     i minne — det siste betyr noe paa telefon.
-
-     ── Historikk ──
-     8. september 2026: Foerste utgave hadde en «Stram kanten»-bryter som
-     leste ut hele bildet paa nytt for hver minste bevegelse — 16 MB friskt
-     minne hver gang, titalls av dem i loepet av ett drag — og Safari stengte
-     appen. Den er borte, og koden leser ikke ut bildepunkter i det hele tatt
-     lenger. «Hent tilbake» er ogsaa tatt ut; verktoeyet skal gjoere én ting.
-     Tegningen paa skjermen foelger skjermens egen takt, ikke musas. Og
-     skulle noe likevel svikte, lukkes viskelaeret pent i stedet for aa ta
-     med seg resten av appen. -->
-<script>
-(function(){
-  'use strict';
-
-  var T = {
-    no: { knapp:'🧽 Viskelær', tittel:'Viskelær',
-          storrelse:'Penselstørrelse', angre:'Angre', nullstill:'Nullstill',
-          ferdig:'Ferdig', avbryt:'Avbryt',
-          styrke:'Styrke',   /* kbo-styrke */
-          knapp2:'\ud83e\uddfd Visk med bakgrunnen bak',   /* kbo-viskelag */
-          hjelp2:'Her ser du bakgrunnen mens du visker, s\u00e5 du kan tone portrettet ned i landskapet og se det skje. Senk styrken for \u00e5 ta bort bare litt.',
-          hjelp:'Dra over bildet for å viske bort det som ble igjen. Rutemønsteret viser hva som er gjennomsiktig. Senker du styrken, visker du bort bare litt, og portrettet tones ned i stedet for å bli borte.',
-          feil:'Noe gikk galt, så viskelæret ble lukket. Portrettet ditt er urørt.' },
-    sv: { knapp:'🧽 Suddgummi', tittel:'Suddgummi',
-          storrelse:'Penselstorlek', angre:'Ångra', nullstill:'Nollställ',
-          ferdig:'Klar', avbryt:'Avbryt',
-          styrke:'Styrka',
-          knapp2:'\ud83e\uddfd Sudda med bakgrunden bakom',
-          hjelp2:'H\u00e4r ser du bakgrunden medan du suddar, s\u00e5 du kan tona ner portr\u00e4ttet i landskapet och se det h\u00e4nda. S\u00e4nk styrkan f\u00f6r att ta bort bara lite.',
-          hjelp:'Dra över bilden för att sudda bort det som blev kvar. Rutmönstret visar vad som är genomskinligt. Sänker du styrkan suddar du bort bara lite, och porträttet tonas ner i stället för att försvinna.',
-          feil:'Något gick fel, så suddgummit stängdes. Ditt porträtt är orört.' },
-    da: { knapp:'🧽 Viskelæder', tittel:'Viskelæder',
-          storrelse:'Penselstørrelse', angre:'Fortryd', nullstill:'Nulstil',
-          ferdig:'Færdig', avbryt:'Annuller',
-          styrke:'Styrke',
-          knapp2:'\ud83e\uddfd Visk med baggrunden bag',
-          hjelp2:'Her ser du baggrunden, mens du visker, s\u00e5 du kan tone portr\u00e6ttet ned i landskabet og se det ske. S\u00e6nk styrken for at tage lidt v\u00e6k.',
-          hjelp:'Træk hen over billedet for at viske det væk, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt. Sænker du styrken, visker du kun lidt væk, og portrættet tones ned i stedet for at forsvinde.',
-          feil:'Noget gik galt, så viskelæderet blev lukket. Dit portræt er urørt.' },
-    en: { knapp:'🧽 Eraser', tittel:'Eraser',
-          storrelse:'Brush size', angre:'Undo', nullstill:'Reset',
-          ferdig:'Done', avbryt:'Cancel',
-          styrke:'Strength',
-          knapp2:'\ud83e\uddfd Erase with the background behind',
-          hjelp2:'Here you see the background while you erase, so you can fade the portrait into the landscape and watch it happen. Lower the strength to take away only a little.',
-          hjelp:'Drag across the image to erase what was left behind. The checkerboard shows what is transparent. Lower the strength to erase only a little, so the portrait fades down instead of disappearing.',
-          feil:'Something went wrong, so the eraser was closed. Your portrait is untouched.' }
-  };
-  function spraak(){ try { if (typeof lang === 'string' && T[lang]) return lang; } catch(e){} return 'no'; }
-  function t(n){ return (T[spraak()] || T.no)[n] || T.no[n] || ''; }
-
-  var F = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
-
-  var basis = null, arbeid = null, ac = null;
-  var lerret = null, ctx = null;
-  /* ferdig baerer alle avsluttede strok. mellom baerer det stroket som
-     tegnes akkurat naa, i full styrke. arbeid er de to lagt sammen, og
-     det er arbeid som vises og som lagres til slutt. */
-  var ferdig = null, fc = null, mellom = null, mc = null;
-  /* Bakgrunnen vises bak portrettet naar viskelaeret aapnes fra
-     komposisjonssteget. Den ligger paa sitt eget lerret, ellers ville
-     viskingen spist den ogsaa. */
-  var bak = null, medBak = false;
-  /* Portretteffekten (sort/hvitt osv.) ligger bare i visningen, aldri i
-     det som lagres. visbasis er portrettet med effekten paa, visning er
-     der effekten og viskingen settes sammen for oeyet. */
-  var visbasis = null, visning = null;
-  var strok = [];
-  var tegner = false, naa = null;
-  var pensel = 40;
-  var styrke = 1;
-  var over = null;
-  var venterTegn = false, venterVis = false;
-
-  function lastBilde(url){
-    return new Promise(function(ok, nei){
-      var i = new Image();
-      i.onload = function(){ ok(i); };
-      i.onerror = function(){ nei(new Error('kunne ikke lese bildet')); };
-      i.src = url;
-    });
-  }
-
-  /* Rydder alt vekk. Store lerret slippes eksplisitt — paa iPhone og iPad er
-     det forskjellen paa at appen lever videre og ikke. */
-  function lukk(){
-    try { if (over && over.parentNode) over.remove(); } catch(e){}
-    try { if (arbeid){ arbeid.width = 0; arbeid.height = 0; } } catch(e){}
-    try { if (ferdig){ ferdig.width = 0; ferdig.height = 0; } } catch(e){}
-    try { if (mellom){ mellom.width = 0; mellom.height = 0; } } catch(e){}
-    try { if (bak){ bak.width = 0; bak.height = 0; } } catch(e){}
-    over = null; lerret = null; ctx = null;
-    arbeid = null; ac = null; basis = null;
-    ferdig = null; fc = null; mellom = null; mc = null;
-    bak = null; medBak = false;
-    try { if (visning){ visning.width = 0; visning.height = 0; } } catch(e){}
-    visbasis = null; visning = null;
-    strok = []; naa = null; tegner = false;
-  }
-
-  function nodstopp(err){
-    try { console.error('Viskelær stoppet:', err); } catch(e){}
-    var melding = t('feil');
-    lukk();
-    try { alert(melding); } catch(e){}
-  }
-
-  /* Bygger opp igjen alle avsluttede strok fra originalen. Brukes av
-     Angre og Nullstill, som fjerner strok fra lista. */
-  function byggFerdig(){
-    fc.clearRect(0, 0, ferdig.width, ferdig.height);
-    fc.drawImage(basis, 0, 0);
-    for (var s = 0; s < strok.length; s++) leggPaa(fc, strok[s]);
-  }
-
-  /* Ett strok, lagt oppaa én gang med sin egen styrke. */
-  function leggPaa(maal, st){
-    tegnIMellom(st);
-    maal.save();
-    maal.globalAlpha = Math.max(0, Math.min(1, st.styrke));
-    maal.globalCompositeOperation = 'destination-out';
-    maal.drawImage(mellom, 0, 0);
-    maal.restore();
-  }
-
-  function tegnAlt(){
-    if (!ac || !basis) return;
-    try {
-      ac.clearRect(0, 0, arbeid.width, arbeid.height);
-      ac.drawImage(ferdig, 0, 0);
-      /* Stroket som tegnes akkurat naa ligger i mellomlerretet, og vises
-         med sin styrke uten aa vaere skrevet inn i ferdig enda. */
-      if (tegner && naa){
-        ac.save();
-        ac.globalAlpha = Math.max(0, Math.min(1, naa.styrke));
-        ac.globalCompositeOperation = 'destination-out';
-        ac.drawImage(mellom, 0, 0);
-        ac.restore();
-      }
-      vis();
-    } catch(err){ nodstopp(err); }
-  }
-
-  /* Skjermens egen takt, ikke musas. */
-  function planleggTegn(){
-    if (venterTegn) return;
-    venterTegn = true;
-    requestAnimationFrame(function(){ venterTegn = false; tegnAlt(); });
-  }
-
-  /* Hele stroket tegnes i mellomlerretet i full styrke. Innenfor ett
-     strok skal penselen daekke helt der den har gaatt flere ganger, ellers
-     ville et krussedull bli flekkete. Styrken settes foerst naar stroket
-     legges oppaa bildet. */
-  function tegnIMellom(st){
-    mc.clearRect(0, 0, mellom.width, mellom.height);
-    var pkt = st.punkter;
-    if (!pkt.length) return;
-    for (var i = 0; i < pkt.length; i++){
-      var f = i ? pkt[i-1] : pkt[i];
-      flekk(st, f[0], f[1], pkt[i][0], pkt[i][1]);
-    }
-  }
-
-  /* Myk kant. Bare den innerste femtedelen tar full styrke; derfra faller
-     den jevnt ut mot ingenting. Uten det ville hvert drag etterlate en skarp
-     skjoet, og utklippet blir hakkete langs haar og skuldre. */
-  function flekk(st, x0, y0, x1, y1){
-    if (!mc) return;
-    var lengde = Math.hypot(x1-x0, y1-y0);
-    var steg = Math.max(1, st.r / 5);
-    var antall = Math.max(1, Math.ceil(lengde / steg));
-    mc.save();
-    /* Svart i mellomlerretet. Det er formen paa stroket som lages her,
-       ikke selve viskingen. */
-    for (var i = 0; i <= antall; i++){
-      var x = x0 + (x1-x0) * (i/antall);
-      var y = y0 + (y1-y0) * (i/antall);
-      var g = mc.createRadialGradient(x, y, st.r * 0.18, x, y, st.r);
-      g.addColorStop(0,    'rgba(0,0,0,1)');
-      g.addColorStop(0.45, 'rgba(0,0,0,0.62)');
-      g.addColorStop(0.75, 'rgba(0,0,0,0.24)');
-      g.addColorStop(0.92, 'rgba(0,0,0,0.06)');
-      g.addColorStop(1,    'rgba(0,0,0,0)');
-      mc.fillStyle = g;
-      mc.beginPath(); mc.arc(x, y, st.r, 0, Math.PI*2); mc.fill();
-    }
-    mc.restore();
-  }
-
-  /* Bakgrunnen slik den ligger i komposisjonen: den dekker hele den
-     kvadratiske flaten, med samme utsnitt og uskarphet som der. */
-  async function tegnBakgrunn(){
-    if (!bak || !basis || !state.selectedBg) return;
-    var SIZE = 1000;
-    var bilde = await lastBilde(state.selectedBg);
-    var av = document.createElement('canvas');
-    av.width = SIZE; av.height = SIZE;
-    var avc = av.getContext('2d');
-    if (typeof drawCover === 'function') drawCover(avc, bilde, 0, 0, SIZE, SIZE);
-    else avc.drawImage(bilde, 0, 0, SIZE, SIZE);
-    if (state.bgBlur > 0 && typeof boxBlur === 'function'){
-      try { boxBlur(avc, SIZE, SIZE, state.bgBlur); } catch(e){}
-    }
-    var bc = bak.getContext('2d');
-    bc.clearRect(0, 0, bak.width, bak.height);
-    bc.drawImage(av, 0, 0, bak.width, bak.height);
-    try { av.width = 0; av.height = 0; } catch(e){}
-  }
-
-  /* Hvor portrettet ligger paa det kvadratiske lerretet, med samme
-     regnestykke som appen bruker i komposisjonen. */
-  function komposisjonsRute(){
-    var SIZE = 1000;
-    var k = lerret.width / SIZE;
-    var bredde = SIZE * (state.scale || 1);
-    var hoyde  = basis.height * (bredde / basis.width);
-    var px = (state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5;
-    var py = (state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.5;
-    return { x: (SIZE * px - bredde / 2) * k, y: (SIZE * py - hoyde / 2) * k,
-             w: bredde * k, h: hoyde * k };
-  }
-
-  function vis(){
-    if (!lerret || !arbeid) return;
-    ctx.clearRect(0, 0, lerret.width, lerret.height);
-    /* Har portrettet en effekt paa seg, settes fargene fra effekten sammen
-       med gjennomsiktigheten fra viskingen foer det vises. */
-    var kilde = arbeid;
-    if (visbasis && visning){
-      try {
-        var vc = visning.getContext('2d');
-        vc.clearRect(0, 0, visning.width, visning.height);
-        vc.drawImage(visbasis, 0, 0);
-        vc.save();
-        vc.globalCompositeOperation = 'destination-in';
-        vc.drawImage(arbeid, 0, 0);
-        vc.restore();
-        kilde = visning;
-      } catch(e){ kilde = arbeid; }
-    }
-    if (medBak){
-      var r = komposisjonsRute();
-      ctx.save();
-      ctx.globalAlpha = (state.opacity == null ? 1 : state.opacity);
-      ctx.drawImage(kilde, r.x, r.y, r.w, r.h);
-      ctx.restore();
-    } else {
-      ctx.drawImage(kilde, 0, 0, lerret.width, lerret.height);
-    }
-  }
-  function planleggVis(){
-    if (venterVis) return;
-    venterVis = true;
-    requestAnimationFrame(function(){ venterVis = false; vis(); });
-  }
-
-  function bildepunkt(e){
-    var rr = lerret.getBoundingClientRect();
-    var lx = (e.clientX - rr.left) / rr.width  * lerret.width;
-    var ly = (e.clientY - rr.top)  / rr.height * lerret.height;
-    if (medBak){
-      var r = komposisjonsRute();
-      return [ (lx - r.x) / r.w * arbeid.width,
-               (ly - r.y) / r.h * arbeid.height ];
-    }
-    return [ lx / lerret.width  * arbeid.width,
-             ly / lerret.height * arbeid.height ];
-  }
-
-  function knapp(tekst, primar){
-    var b = document.createElement('button');
-    b.type = 'button'; b.textContent = tekst;
-    b.style.cssText = 'padding:11px 18px;border-radius:10px;font:600 14.5px ' + F + ';cursor:pointer;border:none;' +
-      (primar ? 'background:#1a1a1a;color:#f5f5f3;' : 'background:#fff;color:#1a1a1a;border:1px solid #d8cfb8;');
-    return b;
-  }
-
-  async function apne(fraKomposisjon){
-    if (over) return;
-    try {
-      if (typeof state === 'undefined' || !state || !state.portraitProcessed) return;
-      medBak = !!fraKomposisjon && !!state.selectedBg;
-      basis = await lastBilde(state.portraitProcessed);
-      strok = [];
-
-      arbeid = document.createElement('canvas');
-      arbeid.width = basis.width; arbeid.height = basis.height;
-      ac = arbeid.getContext('2d');
-      ac.drawImage(basis, 0, 0);
-
-      ferdig = document.createElement('canvas');
-      ferdig.width = basis.width; ferdig.height = basis.height;
-      fc = ferdig.getContext('2d');
-      fc.drawImage(basis, 0, 0);
-
-      mellom = document.createElement('canvas');
-      mellom.width = basis.width; mellom.height = basis.height;
-      mc = mellom.getContext('2d');
-
-      visbasis = null; visning = null;
-      try {
-        if (typeof portraitDrawable === 'function' && state.effect && state.effect !== 'none'){
-          var d = portraitDrawable(basis);
-          if (d && d !== basis){
-            visbasis = d;
-            visning = document.createElement('canvas');
-            visning.width = basis.width; visning.height = basis.height;
-          }
-        }
-      } catch(e){ visbasis = null; visning = null; }
-
-      over = document.createElement('div');
-      over.id = 'pk-over';
-      over.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:#f5f5f3;' +
-        'display:flex;flex-direction:column;font:14px ' + F + ';';
-
-      var topp = document.createElement('div');
-      topp.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 16px;background:#1a1a1a;color:#f5f5f3;';
-      var tit = document.createElement('div');
-      tit.textContent = t('tittel');
-      tit.style.cssText = 'flex:1;font:600 16px ' + F + ';';
-      var avb = knapp(t('avbryt'), false);
-      var fer = knapp(t('ferdig'), true);
-      fer.style.background = '#c4944a'; fer.style.color = '#fff';
-      topp.appendChild(tit); topp.appendChild(avb); topp.appendChild(fer);
-
-      var midt = document.createElement('div');
-      midt.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;';
-
-      lerret = document.createElement('canvas');
-      if (medBak){
-        /* Her skal du se bildet ditt slik det faktisk er, ikke portrettets
-           egen ramme forstoerret. Lerretet er derfor kvadratisk som
-           komposisjonen, og portrettet tegnes inn paa sin plass. */
-        lerret.width = 900; lerret.height = 900;
-      } else {
-        var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
-        lerret.width = Math.round(basis.width * skala);
-        lerret.height = Math.round(basis.height * skala);
-      }
-      lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
-        'border-radius:10px;' + (medBak ? '' :
-        'background-image:' +
-        'linear-gradient(45deg,#e2ded4 25%,transparent 25%),' +
-        'linear-gradient(-45deg,#e2ded4 25%,transparent 25%),' +
-        'linear-gradient(45deg,transparent 75%,#e2ded4 75%),' +
-        'linear-gradient(-45deg,transparent 75%,#e2ded4 75%);' +
-        'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;');
-      ctx = lerret.getContext('2d');
-
-      if (medBak){
-        /* Portrettet ligger i sin egen stoerrelse her, mens bakgrunnen
-           ligger i komposisjonen med sin egen plassering. Derfor klippes
-           den biten av bakgrunnen som faktisk ligger BAK portrettet ut,
-           og strekkes over dette lerretet. Da staar de to i flukt. */
-        /* Ramma er kvadratisk som bildet, og krymper med skjermen.
-           Uten hoeyden og sideforholdet her stikker bunnen av bildet
-           utenfor paa en lav skjerm. */
-        var ramme = document.createElement('div');
-        ramme.style.cssText = 'position:relative;line-height:0;flex:0 1 auto;' +
-          'height:900px;aspect-ratio:1/1;max-width:100%;max-height:100%;';
-        bak = document.createElement('canvas');
-        bak.width = lerret.width; bak.height = lerret.height;
-        bak.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border-radius:10px;';
-        /* Stemningen ligger paa hele bildet i komposisjonen, ikke bare
-           paa bakgrunnen. Derfor legges filteret paa rammen. */
-        try { ramme.style.filter = (typeof cssFilterValueFor === 'function') ? cssFilterValueFor(state.filter) : 'none'; } catch(e){}
-        lerret.style.position = 'relative';
-        lerret.style.display = 'block';
-        lerret.style.width = '100%'; lerret.style.height = '100%';
-        ramme.appendChild(bak); ramme.appendChild(lerret);
-        midt.appendChild(ramme);
-        try { await tegnBakgrunn(); } catch(e){}
-      } else {
-        midt.appendChild(lerret);
-      }
-
-      var bunn = document.createElement('div');
-      bunn.style.cssText = 'background:#fff;border-top:1px solid #ded7c9;padding:16px 16px 20px;';
-
-      var boks = document.createElement('div');
-      boks.style.cssText = 'max-width:420px;margin:0 auto 14px;';
-      var merke = document.createElement('label');
-      merke.textContent = t('storrelse');
-      merke.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
-      var s = document.createElement('input');
-      s.type = 'range'; s.min = 8; s.max = 160; s.value = pensel;
-      s.style.cssText = 'width:100%;accent-color:#c4944a;';
-      s.addEventListener('input', function(){ pensel = parseInt(s.value, 10); });
-      boks.appendChild(merke); boks.appendChild(s);
-
-      /* Styrken. Staar paa full som foer, saa ingen opplever at verktoeyet
-         plutselig oppfoerer seg annerledes. Senker man den, tones bildet
-         ned i stedet for aa forsvinne. */
-      var boks2 = document.createElement('div');
-      boks2.style.cssText = 'max-width:420px;margin:0 auto 14px;';
-      var merke2 = document.createElement('label');
-      merke2.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
-      var tall2 = document.createElement('span');
-      tall2.style.cssText = 'float:right;color:#8a857b;';
-      function visStyrke(){ tall2.textContent = Math.round(styrke * 100) + ' %'; }
-      merke2.appendChild(document.createTextNode(t('styrke')));
-      merke2.appendChild(tall2);
-      var s2 = document.createElement('input');
-      s2.type = 'range'; s2.min = 5; s2.max = 100; s2.value = Math.round(styrke * 100);
-      s2.style.cssText = 'width:100%;accent-color:#c4944a;';
-      s2.addEventListener('input', function(){
-        styrke = Math.max(0.05, Math.min(1, parseInt(s2.value, 10) / 100));
-        visStyrke();
-      });
-      visStyrke();
-      boks2.appendChild(merke2); boks2.appendChild(s2);
-
-      var rad = document.createElement('div');
-      rad.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
-      var kAngre = knapp('↩ ' + t('angre'), false);
-      kAngre.onclick = function(){ if (strok.length){ strok.pop(); byggFerdig(); planleggTegn(); } };
-      var kNull = knapp(t('nullstill'), false);
-      kNull.onclick = function(){ strok = []; byggFerdig(); planleggTegn(); };
-      rad.appendChild(kAngre); rad.appendChild(kNull);
-
-      var hjelp = document.createElement('p');
-      hjelp.textContent = medBak ? t('hjelp2') : t('hjelp');
-      hjelp.style.cssText = 'margin:14px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
-
-      bunn.appendChild(boks); bunn.appendChild(boks2); bunn.appendChild(rad); bunn.appendChild(hjelp);
-      over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
-
-      /* Ringen viser hvor stor penselen faktisk er. Uten den ser man bare
-         et kryss og maa gjette seg til stoerrelsen. Hvit strek med moerk
-         skygge, saa den synes baade paa lyst og moerkt. */
-      var ring = document.createElement('div');
-      ring.style.cssText = 'position:fixed;left:0;top:0;border-radius:50%;pointer-events:none;' +
-        'border:1.5px solid rgba(255,255,255,0.95);' +
-        'box-shadow:0 0 0 1.5px rgba(0,0,0,0.5) inset, 0 0 0 1.5px rgba(0,0,0,0.3);' +
-        'display:none;z-index:2147483200;';
-      over.appendChild(ring);
-
-      function ringStorrelse(){
-        var rr = lerret.getBoundingClientRect();
-        var d = 2 * pensel * (rr.width / lerret.width);
-        ring.style.width = d + 'px'; ring.style.height = d + 'px';
-        return { d: d, rr: rr };
-      }
-      function flyttRing(e){
-        var m = ringStorrelse();
-        ring.style.transform = 'translate(' + (e.clientX - m.d/2) + 'px,' +
-                                              (e.clientY - m.d/2) + 'px)';
-        ring.style.display = 'block';
-      }
-      lerret.addEventListener('pointermove', flyttRing);
-      lerret.addEventListener('pointerdown', flyttRing);
-      lerret.addEventListener('pointerleave', function(){ ring.style.display = 'none'; });
-      /* Drar man i skyveknappen, vises ringen midt paa bildet med det samme.
-         Paa mobil og nettbrett er det eneste maaten aa se stoerrelsen paa. */
-      s.addEventListener('input', function(){
-        var m = ringStorrelse();
-        ring.style.transform = 'translate(' + (m.rr.left + m.rr.width/2 - m.d/2) + 'px,' +
-                                              (m.rr.top + m.rr.height/2 - m.d/2) + 'px)';
-        ring.style.display = 'block';
-      });
-
-      document.body.appendChild(over);
-      tegnAlt();
-
-      lerret.addEventListener('pointerdown', function(e){
-        try {
-          e.preventDefault();
-          try { lerret.setPointerCapture(e.pointerId); } catch(err){}
-          var f = medBak ? (arbeid.width / komposisjonsRute().w)
-                        : (arbeid.width / lerret.width);
-          naa = { r: pensel * f, styrke: styrke, punkter: [bildepunkt(e)] };
-          strok.push(naa);
-          tegner = true;
-          tegnIMellom(naa);
-          planleggTegn();
-        } catch(err){ nodstopp(err); }
-      });
-      lerret.addEventListener('pointermove', function(e){
-        if (!tegner || !naa) return;
-        try {
-          e.preventDefault();
-          var p = bildepunkt(e);
-          var f = naa.punkter[naa.punkter.length - 1];
-          naa.punkter.push(p);
-          /* Bare den nye biten legges til i mellomlerretet. Hele stroket
-             trenger ikke tegnes paa nytt for hver bevegelse. */
-          flekk(naa, f[0], f[1], p[0], p[1]);
-          planleggTegn();
-        } catch(err){ nodstopp(err); }
-      });
-      /* Naar fingeren slippes, skrives stroket inn i ferdig med sin
-         styrke, én gang. Da kan neste strok begynne paa blanke ark. */
-      function slutt(){
-        if (tegner && naa){
-          try {
-            fc.save();
-            fc.globalAlpha = Math.max(0, Math.min(1, naa.styrke));
-            fc.globalCompositeOperation = 'destination-out';
-            fc.drawImage(mellom, 0, 0);
-            fc.restore();
-            mc.clearRect(0, 0, mellom.width, mellom.height);
-          } catch(err){ nodstopp(err); return; }
-        }
-        tegner = false; naa = null;
-        planleggTegn();
-      }
-      lerret.addEventListener('pointerup', slutt);
-      lerret.addEventListener('pointercancel', slutt);
-      lerret.addEventListener('pointerleave', slutt);
-
-      avb.onclick = lukk;
-      fer.onclick = function(){
-        try {
-          state.portraitProcessed = arbeid.toDataURL('image/png');
-          if (typeof drawPortraitPreview === 'function') drawPortraitPreview();
-          /* Kom du fra komposisjonen, skal den tegnes opp igjen med det
-             samme, ellers staar det gamle portrettet der og du tror
-             ingenting skjedde. Mellomlageret maa toemmes foerst. */
-          try { if (typeof _portraitImgCache === 'object' && _portraitImgCache) _portraitImgCache.src = null; } catch(e){}
-          if (typeof renderMainCanvas === 'function') { try { renderMainCanvas(); } catch(e){} }
-          if (typeof renderTextCanvas === 'function') { try { renderTextCanvas(); } catch(e){} }
-          if (typeof saveWorkingState === 'function') saveWorkingState();
-        } catch(err){ nodstopp(err); return; }
-        lukk();
-      };
-
-    } catch(err){ nodstopp(err); }
-  }
-
-  /* ── Knappen i portrettsteget ──────────────────────────────────────── */
-  /* Den andre inngangen: i steget der portrettet ligger paa bakgrunnen.
-     Samme verktoey, men her ser du hva som kommer fram naar du visker. */
-  function settInn2(){
-    var boks = document.getElementById('mainCanvasWrap');
-    if (!boks || document.getElementById('pk-knapp2')) return false;
-    var b = document.createElement('button');
-    b.type = 'button'; b.id = 'pk-knapp2';
-    b.style.cssText = 'display:block;margin:12px auto 0;padding:11px 20px;border-radius:10px;' +
-      'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
-    var sp = document.createElement('span'); sp.id = 'pk-knapp2-tekst';
-    b.appendChild(sp);
-    b.onclick = function(){ apne(true); };
-    boks.parentNode.insertBefore(b, boks.nextSibling);
-    tekstUt();
-    return true;
-  }
-
-  /* NB: knappen i portrettsteget maa kalle apne(false) eksplisitt.
-     Skriver man b.onclick = apne, sendes selve klikkhendelsen inn som
-     foerste argument, og den er alltid sann. Da tror verktoeyet at det
-     ble aapnet fra komposisjonen, og tegner bakgrunn i begge stegene. */
-  function settInn(){
-    var vert = document.getElementById('portraitPreview');
-    if (!vert || document.getElementById('pk-knapp')) return false;
-    var boks = vert.querySelector('.canvas-wrap');
-    if (!boks) return false;
-    var b = document.createElement('button');
-    b.type = 'button'; b.id = 'pk-knapp';
-    b.style.cssText = 'display:block;margin:12px auto 0;padding:11px 20px;border-radius:10px;' +
-      'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
-    var sp = document.createElement('span'); sp.id = 'pk-knapp-tekst';
-    b.appendChild(sp);
-    b.onclick = function(){ apne(false); };
-    boks.parentNode.insertBefore(b, boks.nextSibling);
-    tekstUt();
-    return true;
-  }
-
-  function tekstUt(){
-    var e = document.getElementById('pk-knapp-tekst');
-    if (e) e.textContent = t('knapp');
-    var e2 = document.getElementById('pk-knapp2-tekst');
-    if (e2) e2.textContent = t('knapp2');
-  }
-
-  function foelgSpraak(){
-    if (typeof window.setLang !== 'function' || window.setLang._pkVakt) return;
-    var o = window.setLang;
-    var n = function(){ var s = o.apply(this, arguments); try { tekstUt(); } catch(e){} return s; };
-    n._pkVakt = true; window.setLang = n;
-  }
-
-  var forsok = 0;
-  var venter = setInterval(function(){
-    forsok++;
-    var a = settInn();
-    var b2 = settInn2();
-    if (a || b2) foelgSpraak();
-    if ((document.getElementById('pk-knapp') && document.getElementById('pk-knapp2')) || forsok > 80){
-      clearInterval(venter);
-    }
-  }, 250);
-
-})();
-</script>
-
 <!-- ═══════════ HENT BAKGRUNN FRA DAGBOKEN ═══════════
      Et ferdig fotomaleri er ofte den beste bakgrunnen for det neste. Til naa
      maatte man gaa veien om dagboken, aapne komposisjonen og svare ja paa et
@@ -7504,6 +6954,571 @@ init();
 })();
 </script>
 <!-- ══ slutt kbo-tilprint-blokk ═══════════════ -->
+
+<script>
+/* ═══════════ VISKELÆR ═══════════
+   Samme motor som Fotomaleri Pro.
+
+   Viskingen lagres som en egen maske ved siden av portrettet, ikke inni det.
+   Bildet selv blir aldri rørt, og Tilbakestill gir alt tilbake. Ingen eget
+   vindu: du slaar paa viskelaeret og visker rett paa bildet der det ligger,
+   baade i portrettsteget og i komposisjonen.
+
+   Masken er en PNG i portrettets egen oppløsning. Hvit betyr behold, borte
+   betyr visket. Den legges paa i portraitDrawable, som er det ene stedet
+   portrettet tegnes fra — derfor gjelder viskingen ogsaa i eksport og dagbok.
+
+   Styrken er et tak per strok, ikke noe som hoper seg opp: hele stroket
+   samles i et eget lerret foerst, og legges paa masken én gang naar du
+   slipper. Drar du fram og tilbake i samme strok, blir det ikke moerkere. */
+(function(){
+  'use strict';
+
+  var T = {
+    no: { knapp:'🧽 Viskelær', av:'✓ Viskelær på', storrelse:'Penselstørrelse',
+          styrke:'Styrke', mykhet:'Myke kanter', angre:'↩ Angre',
+          nullstill:'Tilbakestill', ferdig:'Ferdig',
+          hjelp:'Dra over bildet for å viske bort. Senk styrken for å ta bort bare litt, så portrettet toner seg inn i bakgrunnen.',
+          feil:'Viskelæret stoppet. Bildet ditt er uendret.' },
+    sv: { knapp:'🧽 Suddgummi', av:'✓ Suddgummi på', storrelse:'Penselstorlek',
+          styrke:'Styrka', mykhet:'Mjuka kanter', angre:'↩ Ångra',
+          nullstill:'Återställ', ferdig:'Klar',
+          hjelp:'Dra över bilden för att sudda bort. Sänk styrkan för att ta bort bara lite, så tonas porträttet in i bakgrunden.',
+          feil:'Suddgummit stoppade. Din bild är oförändrad.' },
+    da: { knapp:'🧽 Viskelæder', av:'✓ Viskelæder på', storrelse:'Penselstørrelse',
+          styrke:'Styrke', mykhet:'Bløde kanter', angre:'↩ Fortryd',
+          nullstill:'Nulstil', ferdig:'Færdig',
+          hjelp:'Træk hen over billedet for at viske væk. Sænk styrken for at tage lidt væk, så portrættet toner ind i baggrunden.',
+          feil:'Viskelæderet stoppede. Dit billede er uændret.' },
+    en: { knapp:'🧽 Eraser', av:'✓ Eraser on', storrelse:'Brush size',
+          styrke:'Strength', mykhet:'Soft edge', angre:'↩ Undo',
+          nullstill:'Reset', ferdig:'Done',
+          hjelp:'Drag across the image to erase. Lower the strength to take away just a little, so the portrait blends into the background.',
+          feil:'The eraser stopped. Your image is unchanged.' }
+  };
+  function t(k){
+    var l = 'no';
+    try { if (typeof lang === 'string' && T[lang]) l = lang; } catch(e){}
+    return T[l][k];
+  }
+
+  var F = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+  var HIST_MAKS = 10;
+
+  var paa = false;
+  var maal = null;              /* 'portrett' i steg 2, 'komposisjon' i steg 3 */
+  var pensel = 60, styrke = 1, mykhet = 0.5;
+  var basis = null;             /* portrettet, avkodet */
+  var kilde = null;             /* bildet masken hoerer til */
+  var maske = null, mc = null;  /* arbeidsmasken, portrettets egen stoerrelse */
+  var buf = null, bufc = null, grunn = null;
+  var hist = [];
+  var maler = false, forrigePkt = null;
+  var bakSnap = null;           /* bakgrunnen, tegnet én gang per strok */
+  var temp = null, tempc = null;
+  var ramme = 0;
+
+  function bilde(url){
+    return new Promise(function(ok, nei){
+      var i = new Image();
+      i.onload = function(){ ok(i); };
+      i.onerror = function(){ nei(new Error('kunne ikke lese bildet')); };
+      i.src = url;
+    });
+  }
+
+  function lerretFor(){
+    return document.getElementById(maal === 'portrett' ? 'portraitCanvas' : 'mainCanvas');
+  }
+
+  /* ── masken ───────────────────────────────────────────────────────── */
+  async function klargjor(){
+    kilde = state.portraitProcessed;
+    basis = await bilde(state.portraitProcessed);
+    var w = basis.naturalWidth || basis.width, h = basis.naturalHeight || basis.height;
+    maske = document.createElement('canvas');
+    maske.width = w; maske.height = h;
+    mc = maske.getContext('2d');
+    if (state.portraitMask){
+      var m = await bilde(state.portraitMask);
+      mc.drawImage(m, 0, 0, w, h);
+    } else {
+      mc.fillStyle = '#fff'; mc.fillRect(0, 0, w, h);
+    }
+    temp = document.createElement('canvas');
+    temp.width = w; temp.height = h;
+    tempc = temp.getContext('2d');
+    hist = [maske.toDataURL('image/png')];
+  }
+
+  /* Portrettet med masken paa, i portrettets egen stoerrelse. Brukes bare
+     mens man drar; den ferdige tegningen gjoer appen selv etterpaa. */
+  function maskert(){
+    if (!temp || !basis) return null;
+    tempc.clearRect(0, 0, temp.width, temp.height);
+    tempc.drawImage(basis, 0, 0);
+    tempc.globalCompositeOperation = 'destination-in';
+    tempc.drawImage(maske, 0, 0, temp.width, temp.height);
+    tempc.globalCompositeOperation = 'source-over';
+    return temp;
+  }
+
+  /* ── penselen ─────────────────────────────────────────────────────── */
+  /* Dekningen for ett strok samles i et eget lerret. 'lighten' gjoer at to
+     stempler oppaa hverandre aldri blir mer enn helt dekket, saa et sakte
+     drag ikke spiser mer enn et raskt. */
+  function stempel(ctx, x, y, r){
+    var s = Math.max(0, Math.min(1, mykhet));
+    var kjerne = (1 - s) * 0.97;
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    if (kjerne > 0) g.addColorStop(kjerne, 'rgba(255,255,255,1)');
+    var spenn = 1 - kjerne;
+    if (spenn > 0.001){
+      for (var i = 1; i < 10; i++){
+        var f = i / 10;
+        var ss = f * f * (3 - 2 * f);
+        g.addColorStop(kjerne + spenn * f, 'rgba(255,255,255,' + (1 - ss).toFixed(3) + ')');
+      }
+    }
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalCompositeOperation = 'lighten';
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function startStrok(){
+    buf = document.createElement('canvas');
+    buf.width = maske.width; buf.height = maske.height;
+    bufc = buf.getContext('2d');
+    grunn = document.createElement('canvas');
+    grunn.width = maske.width; grunn.height = maske.height;
+    grunn.getContext('2d').drawImage(maske, 0, 0);
+  }
+
+  function strok(fra, til, r){
+    if (!bufc) return;
+    if (!fra){
+      stempel(bufc, til.x, til.y, r);
+    } else {
+      var dx = til.x - fra.x, dy = til.y - fra.y;
+      var lengde = Math.hypot(dx, dy);
+      var steg = Math.max(1, r * 0.35);
+      var n = Math.max(1, Math.ceil(lengde / steg));
+      for (var i = 1; i <= n; i++) stempel(bufc, fra.x + dx * (i/n), fra.y + dy * (i/n), r);
+    }
+    mc.clearRect(0, 0, maske.width, maske.height);
+    mc.drawImage(grunn, 0, 0);
+    mc.save();
+    mc.globalAlpha = Math.max(0, Math.min(1, styrke));
+    mc.globalCompositeOperation = 'destination-out';
+    mc.drawImage(buf, 0, 0);
+    mc.restore();
+  }
+
+  /* ── fra skjerm til portrettets egne bildepunkter ─────────────────── */
+  function punkt(e){
+    var c = lerretFor();
+    if (!c || !basis) return null;
+    var r = c.getBoundingClientRect();
+    var cx = (e.clientX - r.left) / r.width  * c.width;
+    var cy = (e.clientY - r.top)  / r.height * c.height;
+    if (maal === 'portrett'){
+      var S = c.width;
+      var k = Math.min(S / basis.width, S / basis.height);
+      var w = basis.width * k, h = basis.height * k;
+      return { x:(cx - (S-w)/2) / k, y:(cy - (S-h)/2) / k, k:k };
+    }
+    var SIZE = c.width;
+    var dw = SIZE * (state.scale || 1);
+    var kk = dw / basis.width;
+    var dh = basis.height * kk;
+    var pcx = SIZE * ((state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5);
+    var pcy = SIZE * ((state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.55);
+    return { x:(cx - (pcx - dw/2)) / kk, y:(cy - (pcy - dh/2)) / kk, k:kk };
+  }
+
+  /* ── tegning mens man drar ────────────────────────────────────────── */
+  async function lagBakgrunn(){
+    var SIZE = 1000;
+    bakSnap = document.createElement('canvas');
+    bakSnap.width = SIZE; bakSnap.height = SIZE;
+    var c = bakSnap.getContext('2d');
+    if (!state.selectedBg) return;
+    var bg = await bilde(state.selectedBg);
+    if (state.bgBlur > 0 && typeof boxBlur === 'function'){
+      var off = document.createElement('canvas');
+      off.width = SIZE; off.height = SIZE;
+      var oc = off.getContext('2d');
+      if (typeof drawCover === 'function') drawCover(oc, bg, 0, 0, SIZE, SIZE);
+      else oc.drawImage(bg, 0, 0, SIZE, SIZE);
+      boxBlur(oc, SIZE, SIZE, state.bgBlur);
+      c.drawImage(off, 0, 0);
+    } else if (typeof drawCover === 'function'){
+      drawCover(c, bg, 0, 0, SIZE, SIZE);
+    } else {
+      c.drawImage(bg, 0, 0, SIZE, SIZE);
+    }
+  }
+
+  function planlegg(){
+    if (ramme) return;
+    ramme = requestAnimationFrame(function(){ ramme = 0; live(); });
+  }
+
+  function live(){
+    var c = lerretFor();
+    if (!c || !basis) return;
+    var ctx = c.getContext('2d');
+    var p = maskert();
+    if (!p) return;
+    if (maal === 'portrett'){
+      var S = c.width;
+      ctx.clearRect(0, 0, S, S);
+      ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, S, S);
+      for (var y = 0; y < S; y += 16){
+        for (var x = 0; x < S; x += 16){
+          if (((x/16) + (y/16)) % 2 === 0){ ctx.fillStyle = '#eee'; ctx.fillRect(x, y, 16, 16); }
+        }
+      }
+      var k = Math.min(S / basis.width, S / basis.height);
+      var w = basis.width * k, h = basis.height * k;
+      ctx.drawImage(p, (S-w)/2, (S-h)/2, w, h);
+      return;
+    }
+    var SIZE = c.width;
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    if (bakSnap) ctx.drawImage(bakSnap, 0, 0, SIZE, SIZE);
+    var dw = SIZE * (state.scale || 1);
+    var kk = dw / basis.width;
+    var dh = basis.height * kk;
+    var pcx = SIZE * ((state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5);
+    var pcy = SIZE * ((state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.55);
+    ctx.save();
+    ctx.globalAlpha = (state.opacity == null ? 1 : state.opacity);
+    ctx.drawImage(p, pcx - dw/2, pcy - dh/2, dw, dh);
+    ctx.restore();
+  }
+
+  /* ── lagring av masken ────────────────────────────────────────────── */
+  async function lagre(nyHistorikk){
+    var url = maske.toDataURL('image/png');
+    state.portraitMask = url;
+    if (typeof ensureMaskImage === 'function'){ try { await ensureMaskImage(url); } catch(e){} }
+    if (nyHistorikk){
+      hist.push(url);
+      if (hist.length > HIST_MAKS) hist.shift();
+    }
+    tegnOpp();
+    if (typeof scheduleSaveWorkingState === 'function') scheduleSaveWorkingState();
+    oppdaterPanel();
+  }
+
+  function tegnOpp(){
+    try { if (typeof drawPortraitPreview === 'function' && maal === 'portrett') drawPortraitPreview(); } catch(e){}
+    try { if (typeof renderMainCanvas === 'function') renderMainCanvas(); } catch(e){}
+    try { if (typeof renderTextCanvas === 'function' && typeof currentStep !== 'undefined' && currentStep >= 4) renderTextCanvas(); } catch(e){}
+  }
+
+  async function angre(){
+    if (hist.length <= 1) return;
+    hist.pop();
+    var url = hist[hist.length - 1];
+    var m = await bilde(url);
+    mc.clearRect(0, 0, maske.width, maske.height);
+    mc.drawImage(m, 0, 0, maske.width, maske.height);
+    state.portraitMask = url;
+    if (typeof ensureMaskImage === 'function'){ try { await ensureMaskImage(url); } catch(e){} }
+    tegnOpp();
+    oppdaterPanel();
+    if (typeof scheduleSaveWorkingState === 'function') scheduleSaveWorkingState();
+  }
+
+  async function nullstill(){
+    if (!maske) return;
+    mc.clearRect(0, 0, maske.width, maske.height);
+    mc.fillStyle = '#fff'; mc.fillRect(0, 0, maske.width, maske.height);
+    state.portraitMask = null;
+    if (typeof ensureMaskImage === 'function'){ try { await ensureMaskImage(null); } catch(e){} }
+    hist = [maske.toDataURL('image/png')];
+    tegnOpp();
+    oppdaterPanel();
+    if (typeof scheduleSaveWorkingState === 'function') scheduleSaveWorkingState();
+  }
+
+  /* ── pekeren ──────────────────────────────────────────────────────── */
+  function nedPaa(e){
+    if (!paa || !maske) return;
+    /* Byttes portrettet mens viskelaeret staar paa — for eksempel ved
+       «Bruk med bakgrunn» — hoerer masken til et annet bilde. Da hentes
+       den opp paa nytt i stedet for aa viske paa feil grunnlag. */
+    if (kilde !== state.portraitProcessed){
+      e.stopImmediatePropagation(); e.preventDefault();
+      klargjor().then(function(){ oppdaterPanel(); }).catch(function(){ slaaAv(); });
+      return;
+    }
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    var c = lerretFor();
+    try { c.setPointerCapture(e.pointerId); } catch(err){}
+    maler = true;
+    startStrok();
+    var p = punkt(e);
+    forrigePkt = p;
+    strok(null, p, pensel / p.k);
+    planlegg();
+    flyttRing(e);
+  }
+  function flyttPaa(e){
+    flyttRing(e);
+    if (!paa || !maler || !maske) return;
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    var p = punkt(e);
+    strok(forrigePkt, p, pensel / p.k);
+    forrigePkt = p;
+    planlegg();
+  }
+  function oppPaa(e){
+    if (!paa || !maler) return;
+    e.stopImmediatePropagation();
+    maler = false; forrigePkt = null;
+    buf = null; bufc = null; grunn = null;
+    lagre(true);
+  }
+
+  /* ── ringen som viser penselen ────────────────────────────────────── */
+  var ring = null;
+  function lagRing(){
+    if (ring) return ring;
+    ring = document.createElement('div');
+    ring.style.cssText = 'position:fixed;left:0;top:0;border-radius:50%;pointer-events:none;' +
+      'border:1.5px solid rgba(255,255,255,0.95);' +
+      'box-shadow:0 0 0 1.5px rgba(0,0,0,0.5) inset, 0 0 0 1.5px rgba(0,0,0,0.3);' +
+      'display:none;z-index:2147483200;';
+    document.body.appendChild(ring);
+    return ring;
+  }
+  function ringMaal(){
+    var c = lerretFor();
+    if (!c) return null;
+    var r = c.getBoundingClientRect();
+    return 2 * pensel * (r.width / c.width);
+  }
+  function flyttRing(e){
+    if (!paa) return;
+    var d = ringMaal(); if (d == null) return;
+    var k = lagRing();
+    k.style.width = d + 'px'; k.style.height = d + 'px';
+    k.style.transform = 'translate(' + (e.clientX - d/2) + 'px,' + (e.clientY - d/2) + 'px)';
+    k.style.display = 'block';
+  }
+  function visRingMidt(){
+    if (!paa) return;
+    var c = lerretFor(); if (!c) return;
+    var r = c.getBoundingClientRect();
+    var d = ringMaal();
+    var k = lagRing();
+    k.style.width = d + 'px'; k.style.height = d + 'px';
+    k.style.transform = 'translate(' + (r.left + r.width/2 - d/2) + 'px,' + (r.top + r.height/2 - d/2) + 'px)';
+    k.style.display = 'block';
+  }
+  function skjulRing(){ if (ring) ring.style.display = 'none'; }
+
+  /* ── panelet ──────────────────────────────────────────────────────── */
+  function lagPanel(id){
+    var p = document.createElement('div');
+    p.id = id;
+    p.style.cssText = 'display:none;margin:10px auto 0;max-width:460px;background:#fff;' +
+      'border:1px solid #ded7c9;border-radius:12px;padding:14px 16px 16px;';
+    p.innerHTML =
+      '<div class="kbo-v-skyv"></div>' +
+      '<div class="kbo-v-rad" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;"></div>' +
+      '<p class="kbo-v-hjelp" style="margin:12px 0 0;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;"></p>';
+    var skyv = p.querySelector('.kbo-v-skyv');
+    skyv.appendChild(skyver('storrelse', 8, 160, pensel, function(v){ pensel = v; visRingMidt(); }, null));
+    skyv.appendChild(skyver('styrke', 5, 100, Math.round(styrke*100), function(v){ styrke = Math.max(0.05, v/100); }, '%'));
+    skyv.appendChild(skyver('mykhet', 0, 100, Math.round(mykhet*100), function(v){ mykhet = v/100; }, '%'));
+    var rad = p.querySelector('.kbo-v-rad');
+    rad.appendChild(knapp(t('angre'), false, angre, 'kbo-v-angre'));
+    rad.appendChild(knapp(t('nullstill'), false, nullstill, 'kbo-v-null'));
+    rad.appendChild(knapp(t('ferdig'), true, function(){ slaaAv(); }, 'kbo-v-ferdig'));
+    p.querySelector('.kbo-v-hjelp').textContent = t('hjelp');
+    return p;
+  }
+
+  function skyver(nokkel, min, maks, verdi, ved, enhet){
+    var boks = document.createElement('div');
+    boks.style.cssText = 'margin:0 0 10px;';
+    boks.dataset.nokkel = nokkel;
+    var merke = document.createElement('label');
+    merke.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:4px;';
+    var navn = document.createElement('span'); navn.className = 'kbo-v-navn';
+    navn.textContent = t(nokkel);
+    var tall = document.createElement('span');
+    tall.style.cssText = 'float:right;color:#8a857b;';
+    merke.appendChild(navn); merke.appendChild(tall);
+    var s = document.createElement('input');
+    s.type = 'range'; s.min = min; s.max = maks; s.value = verdi;
+    s.style.cssText = 'width:100%;accent-color:#c4944a;';
+    function vis(){ tall.textContent = s.value + (enhet || ''); }
+    s.addEventListener('input', function(){ ved(parseInt(s.value, 10)); vis(); });
+    vis();
+    boks.appendChild(merke); boks.appendChild(s);
+    return boks;
+  }
+
+  function knapp(tekst, primar, ved, klasse){
+    var b = document.createElement('button');
+    b.type = 'button'; b.textContent = tekst; b.className = klasse;
+    b.style.cssText = 'padding:10px 16px;border-radius:10px;font:600 14px ' + F + ';cursor:pointer;' +
+      (primar ? 'background:#1a1a1a;color:#f5f5f3;border:none;'
+              : 'background:#fff;color:#1a1a1a;border:1px solid #d8cfb8;');
+    b.onclick = ved;
+    return b;
+  }
+
+  function oppdaterPanel(){
+    ['kbo-v-panel-2','kbo-v-panel-3'].forEach(function(id){
+      var p = document.getElementById(id);
+      if (!p) return;
+      p.style.display = (paa && ((id.slice(-1) === '2') === (maal === 'portrett'))) ? 'block' : 'none';
+      var a = p.querySelector('.kbo-v-angre');
+      if (a) a.disabled = hist.length <= 1;
+      if (a) a.style.opacity = (hist.length <= 1) ? '0.45' : '1';
+    });
+    ['kbo-v-knapp-2','kbo-v-knapp-3'].forEach(function(id){
+      var b = document.getElementById(id);
+      if (!b) return;
+      var mitt = (id.slice(-1) === '2') ? 'portrett' : 'komposisjon';
+      var aktiv = paa && maal === mitt;
+      b.textContent = aktiv ? t('av') : t('knapp');
+      b.style.background = aktiv ? '#c4944a' : '#fff';
+      b.style.color = aktiv ? '#fff' : '#1a1a1a';
+    });
+  }
+
+  /* ── av og på ─────────────────────────────────────────────────────── */
+  async function slaaPaa(hvilket){
+    if (!state || !state.portraitProcessed) return;
+    if (paa && maal === hvilket){ slaaAv(); return; }
+    maal = hvilket;
+    try {
+      await klargjor();
+      if (maal === 'komposisjon') await lagBakgrunn();
+    } catch(err){
+      try { console.error('Viskelær:', err); } catch(e){}
+      try { alert(t('feil')); } catch(e){}
+      return;
+    }
+    paa = true;
+    var c = lerretFor();
+    if (c){
+      c.style.cursor = 'crosshair';
+      c.style.touchAction = 'none';
+    }
+    oppdaterPanel();
+    visRingMidt();
+  }
+
+  function slaaAv(){
+    paa = false; maler = false; forrigePkt = null;
+    var c2 = document.getElementById('portraitCanvas');
+    var c3 = document.getElementById('mainCanvas');
+    [c2, c3].forEach(function(c){ if (c){ c.style.cursor = ''; } });
+    maske = null; mc = null; basis = null; kilde = null; temp = null; tempc = null;
+    buf = null; bufc = null; grunn = null; bakSnap = null;
+    skjulRing();
+    oppdaterPanel();
+    tegnOpp();
+  }
+
+  /* ── plassering i appen ───────────────────────────────────────────── */
+  function settInn(){
+    var gjort = false;
+    var pv = document.getElementById('portraitPreview');
+    if (pv && !document.getElementById('kbo-v-knapp-2')){
+      var b2 = knapp(t('knapp'), false, function(){ slaaPaa('portrett'); }, '');
+      b2.id = 'kbo-v-knapp-2';
+      b2.style.display = 'block'; b2.style.margin = '12px auto 0';
+      pv.appendChild(b2);
+      pv.appendChild(lagPanel('kbo-v-panel-2'));
+      gjort = true;
+    }
+    var mw = document.getElementById('mainCanvasWrap');
+    if (mw && !document.getElementById('kbo-v-knapp-3')){
+      var b3 = knapp(t('knapp'), false, function(){ slaaPaa('komposisjon'); }, '');
+      b3.id = 'kbo-v-knapp-3';
+      b3.style.display = 'block'; b3.style.margin = '12px auto 0';
+      mw.parentNode.insertBefore(b3, mw.nextSibling);
+      mw.parentNode.insertBefore(lagPanel('kbo-v-panel-3'), b3.nextSibling);
+      gjort = true;
+    }
+    return gjort;
+  }
+
+  function kobleLerret(id){
+    var c = document.getElementById(id);
+    if (!c || c._kboVisk) return false;
+    c._kboVisk = true;
+    c.addEventListener('pointerdown', nedPaa, true);
+    c.addEventListener('pointermove', flyttPaa, true);
+    c.addEventListener('pointerup', oppPaa, true);
+    c.addEventListener('pointercancel', oppPaa, true);
+    c.addEventListener('pointerleave', function(){ skjulRing(); }, true);
+    return true;
+  }
+
+  /* Bytter man steg, skal viskelaeret av. Ellers ville et drag i neste steg
+     viske i stedet for aa flytte. */
+  function foelgSteg(){
+    if (typeof window.gotoStep !== 'function' || window.gotoStep._kboVisk) return;
+    var o = window.gotoStep;
+    var n = function(){ if (paa) slaaAv(); return o.apply(this, arguments); };
+    n._kboVisk = true; window.gotoStep = n;
+  }
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._kboVisk) return;
+    var o = window.setLang;
+    var n = function(){
+      var s = o.apply(this, arguments);
+      try {
+        ['kbo-v-panel-2','kbo-v-panel-3'].forEach(function(id){
+          var p = document.getElementById(id);
+          if (!p) return;
+          p.querySelectorAll('[data-nokkel]').forEach(function(b){
+            var e = b.querySelector('.kbo-v-navn');
+            if (e) e.textContent = t(b.dataset.nokkel);
+          });
+          var a = p.querySelector('.kbo-v-angre'); if (a) a.textContent = t('angre');
+          var nn = p.querySelector('.kbo-v-null'); if (nn) nn.textContent = t('nullstill');
+          var f = p.querySelector('.kbo-v-ferdig'); if (f) f.textContent = t('ferdig');
+          var h = p.querySelector('.kbo-v-hjelp'); if (h) h.textContent = t('hjelp');
+        });
+        oppdaterPanel();
+      } catch(e){}
+      return s;
+    };
+    n._kboVisk = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    settInn();
+    kobleLerret('portraitCanvas');
+    kobleLerret('mainCanvas');
+    foelgSteg(); foelgSpraak();
+    if ((document.getElementById('kbo-v-knapp-2') && document.getElementById('kbo-v-knapp-3')) || forsok > 80){
+      clearInterval(venter);
+    }
+  }, 250);
+
+  window.kboViskAv = slaaAv;
+})();
+
+</script>
 
 </body>
 </html>
