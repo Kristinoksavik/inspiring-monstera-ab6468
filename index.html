@@ -6229,6 +6229,10 @@ init();
      komposisjonssteget. Den ligger paa sitt eget lerret, ellers ville
      viskingen spist den ogsaa. */
   var bak = null, medBak = false;
+  /* Portretteffekten (sort/hvitt osv.) ligger bare i visningen, aldri i
+     det som lagres. visbasis er portrettet med effekten paa, visning er
+     der effekten og viskingen settes sammen for oeyet. */
+  var visbasis = null, visning = null;
   var strok = [];
   var tegner = false, naa = null;
   var pensel = 40;
@@ -6257,6 +6261,8 @@ init();
     arbeid = null; ac = null; basis = null;
     ferdig = null; fc = null; mellom = null; mc = null;
     bak = null; medBak = false;
+    try { if (visning){ visning.width = 0; visning.height = 0; } } catch(e){}
+    visbasis = null; visning = null;
     strok = []; naa = null; tegner = false;
   }
 
@@ -6350,10 +6356,8 @@ init();
     mc.restore();
   }
 
-  /* Bakgrunnen slik den ligger bak portrettet i komposisjonen.
-     Regnestykket er det samme som appen bruker naar den setter sammen
-     bildet: portrettet er SIZE ganger scale bredt, og staar sentrert paa
-     portraitPos. Den biten av bakgrunnen hentes ut og strekkes hit. */
+  /* Bakgrunnen slik den ligger i komposisjonen: den dekker hele den
+     kvadratiske flaten, med samme utsnitt og uskarphet som der. */
   async function tegnBakgrunn(){
     if (!bak || !basis || !state.selectedBg) return;
     var SIZE = 1000;
@@ -6366,22 +6370,52 @@ init();
     if (state.bgBlur > 0 && typeof boxBlur === 'function'){
       try { boxBlur(avc, SIZE, SIZE, state.bgBlur); } catch(e){}
     }
+    var bc = bak.getContext('2d');
+    bc.clearRect(0, 0, bak.width, bak.height);
+    bc.drawImage(av, 0, 0, bak.width, bak.height);
+    try { av.width = 0; av.height = 0; } catch(e){}
+  }
+
+  /* Hvor portrettet ligger paa det kvadratiske lerretet, med samme
+     regnestykke som appen bruker i komposisjonen. */
+  function komposisjonsRute(){
+    var SIZE = 1000;
+    var k = lerret.width / SIZE;
     var bredde = SIZE * (state.scale || 1);
     var hoyde  = basis.height * (bredde / basis.width);
     var px = (state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5;
     var py = (state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.5;
-    var x0 = SIZE * px - bredde / 2;
-    var y0 = SIZE * py - hoyde / 2;
-    var bc = bak.getContext('2d');
-    bc.clearRect(0, 0, bak.width, bak.height);
-    bc.drawImage(av, x0, y0, bredde, hoyde, 0, 0, bak.width, bak.height);
-    try { av.width = 0; av.height = 0; } catch(e){}
+    return { x: (SIZE * px - bredde / 2) * k, y: (SIZE * py - hoyde / 2) * k,
+             w: bredde * k, h: hoyde * k };
   }
 
   function vis(){
     if (!lerret || !arbeid) return;
     ctx.clearRect(0, 0, lerret.width, lerret.height);
-    ctx.drawImage(arbeid, 0, 0, lerret.width, lerret.height);
+    /* Har portrettet en effekt paa seg, settes fargene fra effekten sammen
+       med gjennomsiktigheten fra viskingen foer det vises. */
+    var kilde = arbeid;
+    if (visbasis && visning){
+      try {
+        var vc = visning.getContext('2d');
+        vc.clearRect(0, 0, visning.width, visning.height);
+        vc.drawImage(visbasis, 0, 0);
+        vc.save();
+        vc.globalCompositeOperation = 'destination-in';
+        vc.drawImage(arbeid, 0, 0);
+        vc.restore();
+        kilde = visning;
+      } catch(e){ kilde = arbeid; }
+    }
+    if (medBak){
+      var r = komposisjonsRute();
+      ctx.save();
+      ctx.globalAlpha = (state.opacity == null ? 1 : state.opacity);
+      ctx.drawImage(kilde, r.x, r.y, r.w, r.h);
+      ctx.restore();
+    } else {
+      ctx.drawImage(kilde, 0, 0, lerret.width, lerret.height);
+    }
   }
   function planleggVis(){
     if (venterVis) return;
@@ -6390,9 +6424,16 @@ init();
   }
 
   function bildepunkt(e){
-    var r = lerret.getBoundingClientRect();
-    return [ (e.clientX - r.left) / r.width  * arbeid.width,
-             (e.clientY - r.top)  / r.height * arbeid.height ];
+    var rr = lerret.getBoundingClientRect();
+    var lx = (e.clientX - rr.left) / rr.width  * lerret.width;
+    var ly = (e.clientY - rr.top)  / rr.height * lerret.height;
+    if (medBak){
+      var r = komposisjonsRute();
+      return [ (lx - r.x) / r.w * arbeid.width,
+               (ly - r.y) / r.h * arbeid.height ];
+    }
+    return [ lx / lerret.width  * arbeid.width,
+             ly / lerret.height * arbeid.height ];
   }
 
   function knapp(tekst, primar){
@@ -6425,6 +6466,18 @@ init();
       mellom.width = basis.width; mellom.height = basis.height;
       mc = mellom.getContext('2d');
 
+      visbasis = null; visning = null;
+      try {
+        if (typeof portraitDrawable === 'function' && state.effect && state.effect !== 'none'){
+          var d = portraitDrawable(basis);
+          if (d && d !== basis){
+            visbasis = d;
+            visning = document.createElement('canvas');
+            visning.width = basis.width; visning.height = basis.height;
+          }
+        }
+      } catch(e){ visbasis = null; visning = null; }
+
       over = document.createElement('div');
       over.id = 'pk-over';
       over.style.cssText = 'position:fixed;inset:0;z-index:2147483100;background:#f5f5f3;' +
@@ -6444,9 +6497,16 @@ init();
       midt.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:14px;overflow:hidden;';
 
       lerret = document.createElement('canvas');
-      var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
-      lerret.width = Math.round(basis.width * skala);
-      lerret.height = Math.round(basis.height * skala);
+      if (medBak){
+        /* Her skal du se bildet ditt slik det faktisk er, ikke portrettets
+           egen ramme forstoerret. Lerretet er derfor kvadratisk som
+           komposisjonen, og portrettet tegnes inn paa sin plass. */
+        lerret.width = 900; lerret.height = 900;
+      } else {
+        var skala = Math.min(1, 900 / Math.max(basis.width, basis.height));
+        lerret.width = Math.round(basis.width * skala);
+        lerret.height = Math.round(basis.height * skala);
+      }
       lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
         'border-radius:10px;' + (medBak ? '' :
         'background-image:' +
@@ -6462,13 +6522,21 @@ init();
            ligger i komposisjonen med sin egen plassering. Derfor klippes
            den biten av bakgrunnen som faktisk ligger BAK portrettet ut,
            og strekkes over dette lerretet. Da staar de to i flukt. */
+        /* Ramma er kvadratisk som bildet, og krymper med skjermen.
+           Uten hoeyden og sideforholdet her stikker bunnen av bildet
+           utenfor paa en lav skjerm. */
         var ramme = document.createElement('div');
-        ramme.style.cssText = 'position:relative;display:inline-block;max-width:100%;max-height:100%;line-height:0;';
+        ramme.style.cssText = 'position:relative;line-height:0;flex:0 1 auto;' +
+          'height:900px;aspect-ratio:1/1;max-width:100%;max-height:100%;';
         bak = document.createElement('canvas');
         bak.width = lerret.width; bak.height = lerret.height;
         bak.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border-radius:10px;';
-        try { bak.style.filter = (typeof cssFilterValueFor === 'function') ? cssFilterValueFor(state.filter) : 'none'; } catch(e){}
+        /* Stemningen ligger paa hele bildet i komposisjonen, ikke bare
+           paa bakgrunnen. Derfor legges filteret paa rammen. */
+        try { ramme.style.filter = (typeof cssFilterValueFor === 'function') ? cssFilterValueFor(state.filter) : 'none'; } catch(e){}
         lerret.style.position = 'relative';
+        lerret.style.display = 'block';
+        lerret.style.width = '100%'; lerret.style.height = '100%';
         ramme.appendChild(bak); ramme.appendChild(lerret);
         midt.appendChild(ramme);
         try { await tegnBakgrunn(); } catch(e){}
@@ -6526,6 +6594,41 @@ init();
 
       bunn.appendChild(boks); bunn.appendChild(boks2); bunn.appendChild(rad); bunn.appendChild(hjelp);
       over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
+
+      /* Ringen viser hvor stor penselen faktisk er. Uten den ser man bare
+         et kryss og maa gjette seg til stoerrelsen. Hvit strek med moerk
+         skygge, saa den synes baade paa lyst og moerkt. */
+      var ring = document.createElement('div');
+      ring.style.cssText = 'position:fixed;left:0;top:0;border-radius:50%;pointer-events:none;' +
+        'border:1.5px solid rgba(255,255,255,0.95);' +
+        'box-shadow:0 0 0 1.5px rgba(0,0,0,0.5) inset, 0 0 0 1.5px rgba(0,0,0,0.3);' +
+        'display:none;z-index:2147483200;';
+      over.appendChild(ring);
+
+      function ringStorrelse(){
+        var rr = lerret.getBoundingClientRect();
+        var d = 2 * pensel * (rr.width / lerret.width);
+        ring.style.width = d + 'px'; ring.style.height = d + 'px';
+        return { d: d, rr: rr };
+      }
+      function flyttRing(e){
+        var m = ringStorrelse();
+        ring.style.transform = 'translate(' + (e.clientX - m.d/2) + 'px,' +
+                                              (e.clientY - m.d/2) + 'px)';
+        ring.style.display = 'block';
+      }
+      lerret.addEventListener('pointermove', flyttRing);
+      lerret.addEventListener('pointerdown', flyttRing);
+      lerret.addEventListener('pointerleave', function(){ ring.style.display = 'none'; });
+      /* Drar man i skyveknappen, vises ringen midt paa bildet med det samme.
+         Paa mobil og nettbrett er det eneste maaten aa se stoerrelsen paa. */
+      s.addEventListener('input', function(){
+        var m = ringStorrelse();
+        ring.style.transform = 'translate(' + (m.rr.left + m.rr.width/2 - m.d/2) + 'px,' +
+                                              (m.rr.top + m.rr.height/2 - m.d/2) + 'px)';
+        ring.style.display = 'block';
+      });
+
       document.body.appendChild(over);
       tegnAlt();
 
@@ -6533,7 +6636,8 @@ init();
         try {
           e.preventDefault();
           try { lerret.setPointerCapture(e.pointerId); } catch(err){}
-          var f = arbeid.width / lerret.width;
+          var f = medBak ? (arbeid.width / komposisjonsRute().w)
+                        : (arbeid.width / lerret.width);
           naa = { r: pensel * f, styrke: styrke, punkter: [bildepunkt(e)] };
           strok.push(naa);
           tegner = true;
