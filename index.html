@@ -217,6 +217,10 @@
   .filter-chip { border-width:2px; border-radius:8px; }
 
   /* ── Canvas / preview area ─────────────────────────────────────────────── */
+  /* Plassen til rullefeltet holdes av hele tiden. Ellers hopper bredden på
+     bildet i det øyeblikket siden blir lang nok til å få rullefelt. */
+  html { scrollbar-gutter: stable; }
+
   .canvas-wrap {
     position:relative; width:100%; aspect-ratio:1;
     background:#fff;
@@ -711,7 +715,9 @@
 
     <div id="portraitPreview" class="hidden" style="margin-top:1rem;">
       <h2 id="s2-result-title">Resultat</h2>
-      <div class="canvas-wrap" style="aspect-ratio:1; max-width:360px; margin: 0.5rem auto 0;">
+      <!-- Samme bredde som komposisjonen i steg 3. Da har portrettet samme
+           størrelse hele veien, og du visker i samme målestokk begge steder. -->
+      <div class="canvas-wrap" style="aspect-ratio:1; margin: 0.5rem auto 0;">
         <canvas id="portraitCanvas"></canvas>
       </div>
       <div id="s2-crop-hint" class="hidden" style="text-align:center; font-size:12px; color:#888; margin-top:6px;">Dra for å velge utsnitt</div>
@@ -7516,6 +7522,255 @@ init();
   }, 250);
 
   window.kboViskAv = slaaAv;
+})();
+
+</script>
+
+<script>
+/* ═══════════ PORTRETTBIBLIOTEK ═══════════
+   Foer laa det siste portrettet igjen i vinduet hver gang man kom til
+   steget, ogsaa naar man skulle begynne paa noe nytt.
+
+   Naa: portrettene du har brukt ligger som smaa ruter under opplastingen,
+   de fem siste. Trykk paa en for aa bruke den igjen. Og i resultatvinduet
+   ligger «Fjern portrettet», som toemmer vinduet uten aa miste bildet —
+   det ligger i biblioteket etterpaa.
+
+   Lagres i samme database som resten, under sin egen noekkel, saa ingen
+   tabeller maa endres. */
+(function(){
+  'use strict';
+
+  var MAKS = 5;
+  var NOKKEL = 'kbo_portretter';
+  var F = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+  var T = {
+    no: { tittel:'Portretter du har brukt', hjelp:'Trykk på et portrett for å bruke det igjen.',
+          fjern:'✕ Fjern portrettet', slett:'Slett', utenNavn:'Portrett' },
+    sv: { tittel:'Porträtt du har använt', hjelp:'Tryck på ett porträtt för att använda det igen.',
+          fjern:'✕ Ta bort porträttet', slett:'Radera', utenNavn:'Porträtt' },
+    da: { tittel:'Portrætter du har brugt', hjelp:'Tryk på et portræt for at bruge det igen.',
+          fjern:'✕ Fjern portrættet', slett:'Slet', utenNavn:'Portræt' },
+    en: { tittel:'Portraits you have used', hjelp:'Tap a portrait to use it again.',
+          fjern:'✕ Remove portrait', slett:'Delete', utenNavn:'Portrait' }
+  };
+  function t(k){
+    var l = 'no';
+    try { if (typeof lang === 'string' && T[lang]) l = lang; } catch(e){}
+    return T[l][k];
+  }
+
+  var liste = [];
+  var klar = false;
+
+  function merke(url){
+    if (!url) return '';
+    return url.length + ':' + url.slice(30, 70) + ':' + url.slice(-40);
+  }
+
+  async function les(){
+    try {
+      var r = await dbGet('workingState', NOKKEL);
+      liste = (r && r.items) ? r.items : [];
+    } catch(e){ liste = []; }
+    klar = true;
+    tegn();
+  }
+  async function skriv(){
+    try { await dbPut('workingState', { id: NOKKEL, items: liste }); } catch(e){}
+  }
+
+  /* Samme kilde skal ikke bli to ruter. Har du visket eller endret utsnitt,
+     oppdateres ruta i stedet, saa biblioteket alltid viser slik portrettet
+     ser ut naa. */
+  async function leggTil(){
+    if (!klar || !state.portraitProcessed) return;
+    var k = merke(state.portraitOriginal || state.portraitProcessed);
+    var f = null;
+    for (var i = 0; i < liste.length; i++) if (liste[i].merke === k) { f = liste[i]; break; }
+    if (f){
+      if (f.bilde === state.portraitProcessed && f.maske === (state.portraitMask || null)) return;
+      f.bilde = state.portraitProcessed;
+      f.maske = state.portraitMask || null;
+      f.original = state.portraitOriginal || null;
+      f.tid = Date.now();
+    } else {
+      liste.unshift({
+        id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        merke: k,
+        bilde: state.portraitProcessed,
+        maske: state.portraitMask || null,
+        original: state.portraitOriginal || null,
+        tid: Date.now()
+      });
+      while (liste.length > MAKS) liste.pop();
+    }
+    liste.sort(function(a,b){ return b.tid - a.tid; });
+    await skriv();
+    tegn();
+  }
+
+  async function velg(p){
+    state.portraitOriginal = p.original || p.bilde;
+    state.portraitProcessed = p.bilde;
+    state.portraitMask = p.maske || null;
+    state.portraitKept = false;
+    state.skipPortrait = false;
+    state.portraitPan = { x: 0.5, y: 0.5 };
+    try { if (typeof _portraitImgCache === 'object' && _portraitImgCache) _portraitImgCache.src = null; } catch(e){}
+    if (typeof ensureMaskImage === 'function'){ try { await ensureMaskImage(state.portraitMask); } catch(e){} }
+    var pv = document.getElementById('portraitPreview');
+    if (pv) pv.classList.remove('hidden');
+    var n = document.getElementById('s2-next');
+    if (n) n.disabled = false;
+    try { if (typeof drawPortraitPreview === 'function') await drawPortraitPreview(); } catch(e){}
+    try { if (typeof renderMainCanvas === 'function') renderMainCanvas(); } catch(e){}
+    try { if (typeof saveWorkingState === 'function') saveWorkingState(); } catch(e){}
+    tegn();
+  }
+
+  async function slett(id){
+    liste = liste.filter(function(x){ return x.id !== id; });
+    await skriv();
+    tegn();
+  }
+
+  /* Toemmer vinduet. Bildet er allerede i biblioteket, saa ingenting gaar
+     tapt — derfor spoerres det ikke om bekreftelse. */
+  function fjern(){
+    state.portraitOriginal = null;
+    state.portraitProcessed = null;
+    state.portraitMask = null;
+    state.portraitKept = false;
+    state.skipPortrait = false;
+    state.portraitPan = { x: 0.5, y: 0.5 };
+    try { if (typeof _portraitImgCache === 'object' && _portraitImgCache) _portraitImgCache.src = null; } catch(e){}
+    try { if (typeof window.kboViskAv === 'function') window.kboViskAv(); } catch(e){}
+    var pv = document.getElementById('portraitPreview');
+    if (pv) pv.classList.add('hidden');
+    var n = document.getElementById('s2-next');
+    if (n) n.disabled = true;
+    try {
+      var c = document.getElementById('portraitCanvas');
+      if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+    } catch(e){}
+    try { if (typeof renderMainCanvas === 'function') renderMainCanvas(); } catch(e){}
+    try { if (typeof saveWorkingState === 'function') saveWorkingState(); } catch(e){}
+    tegn();
+  }
+
+  /* ── utseendet ────────────────────────────────────────────────────── */
+  function boks(){
+    var b = document.getElementById('kbo-pbib');
+    if (b) return b;
+    var etter = document.querySelector('#step-2 .pexels-box');
+    if (!etter) return null;
+    b = document.createElement('div');
+    b.id = 'kbo-pbib';
+    b.style.cssText = 'margin-top:1.1rem;';
+    b.innerHTML =
+      '<h2 id="kbo-pbib-tit" style="font-size:12px;color:#888;text-transform:uppercase;' +
+      'letter-spacing:0.06em;margin-bottom:6px;"></h2>' +
+      '<p id="kbo-pbib-sub" style="margin:0 0 8px;font:12px ' + F + ';color:#999;"></p>' +
+      '<div id="kbo-pbib-rutene" style="display:grid;' +
+      'grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;"></div>';
+    etter.parentNode.insertBefore(b, etter.nextSibling);
+    return b;
+  }
+
+  function fjernknapp(){
+    if (document.getElementById('kbo-pbib-fjern')) return;
+    var pv = document.getElementById('portraitPreview');
+    if (!pv) return;
+    var rad = pv.querySelector('div[style*="flex-wrap"]');
+    if (!rad) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'kbo-pbib-fjern';
+    b.className = 'btn btn-secondary';
+    b.textContent = t('fjern');
+    b.onclick = fjern;
+    rad.appendChild(b);
+  }
+
+  function tegn(){
+    var b = boks();
+    if (!b) return;
+    var tit = document.getElementById('kbo-pbib-tit');
+    var sub = document.getElementById('kbo-pbib-sub');
+    if (tit) tit.textContent = t('tittel');
+    if (sub) sub.textContent = t('hjelp');
+    b.style.display = liste.length ? 'block' : 'none';
+    var r = document.getElementById('kbo-pbib-rutene');
+    if (!r) return;
+    r.innerHTML = '';
+    liste.forEach(function(p){
+      var d = document.createElement('div');
+      var valgt = (state.portraitProcessed === p.bilde);
+      d.style.cssText = 'position:relative;aspect-ratio:1;border-radius:9px;overflow:hidden;' +
+        'cursor:pointer;border:2px solid ' + (valgt ? '#1a1a1a' : 'transparent') + ';' +
+        'background-image:linear-gradient(45deg,#eee 25%,transparent 25%),' +
+        'linear-gradient(-45deg,#eee 25%,transparent 25%),' +
+        'linear-gradient(45deg,transparent 75%,#eee 75%),' +
+        'linear-gradient(-45deg,transparent 75%,#eee 75%);' +
+        'background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0;background-color:#fafafa;';
+      var i = document.createElement('img');
+      i.src = p.bilde;
+      i.alt = t('utenNavn');
+      i.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+      d.appendChild(i);
+      d.onclick = function(){ velg(p); };
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.title = t('slett');
+      x.textContent = '✕';
+      x.style.cssText = 'position:absolute;top:3px;right:3px;width:22px;height:22px;' +
+        'border-radius:50%;border:none;background:rgba(0,0,0,0.55);color:#fff;' +
+        'font:13px ' + F + ';line-height:1;cursor:pointer;padding:0;';
+      x.onclick = function(e){ e.stopPropagation(); slett(p.id); };
+      d.appendChild(x);
+      r.appendChild(d);
+    });
+  }
+
+  /* ── holder oeye med portrettet ───────────────────────────────────── */
+  var sist = null;
+  setInterval(function(){
+    try {
+      fjernknapp();
+      var n = state.portraitProcessed || null;
+      if (n !== sist){
+        sist = n;
+        if (n) leggTil(); else tegn();
+      }
+    } catch(e){}
+  }, 1200);
+
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._kboBib) return;
+    var o = window.setLang;
+    var n = function(){
+      var s = o.apply(this, arguments);
+      try {
+        var f = document.getElementById('kbo-pbib-fjern');
+        if (f) f.textContent = t('fjern');
+        tegn();
+      } catch(e){}
+      return s;
+    };
+    n._kboBib = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    var b = boks();
+    fjernknapp();
+    foelgSpraak();
+    if (b || forsok > 80) clearInterval(venter);
+  }, 250);
+
+  les();
 })();
 
 </script>
