@@ -5104,6 +5104,22 @@ init();
 (function(){
   var PRISLISTE = 'https://markedshjelpen.malestudio.no';
 
+  /* Setter sammen «24 komposisjoner og 24 bakgrunner», slik at tallet
+     alltid staar sammen med hva det er tall paa. */
+  function skOppsummer(per){
+    var NAVN = { diary:'komposisjoner', backgrounds:'bakgrunner', portraits:'portretter' };
+    var ETT  = { diary:'komposisjon',   backgrounds:'bakgrunn',   portraits:'portrett' };
+    var d = [];
+    for (var n in per){
+      var a = per[n];
+      if (!a) continue;
+      d.push(a + ' ' + (a === 1 ? (ETT[n] || n) : (NAVN[n] || n)));
+    }
+    if (!d.length) return 'Ingenting';
+    if (d.length === 1) return d[0];
+    return d.slice(0, -1).join(', ') + ' og ' + d[d.length - 1];
+  }
+
   function melding(tekst, feil){
     var el = document.getElementById('pl-melding');
     if(!el){
@@ -5297,7 +5313,7 @@ init();
       + 'border:1px solid #d8cfb8; border-radius:12px; background:#faf9f6; text-align:center;';
     var topp = document.createElement('p');
     topp.style.cssText = 'margin:0 0 10px; font-size:14px; color:#1a1a1a; line-height:1.5;';
-    topp.innerHTML = 'Sikkerhetskopien er klar.<br><b>' + antall + ' komposisjoner</b>, ' + mbTekst + ' MB.';
+    topp.innerHTML = 'Sikkerhetskopien er klar.<br><b>' + antall + '</b>, ' + mbTekst + ' MB.';
     var knapp = document.createElement('button');
     knapp.className = 'btn btn-primary';
     knapp.textContent = '💾 Lagre eller del fila';
@@ -5329,28 +5345,34 @@ init();
     try{
       melding('Lager sikkerhetskopi …');
       var pakke = { app:'fotomaleri', versjon:1, laget:new Date().toISOString(), fra:location.host || 'lokal fil' };
-      var antall = 0;
+      var antall = 0, alt = 0;
+      var kopiPer = {};
       var b = butikker();
       for(var i=0;i<b.length;i++){
         var rader = await dbAll(b[i][0]);
         pakke[b[i][1]] = rader || [];
+        kopiPer[b[i][0]] = (rader||[]).length;
+        alt += (rader||[]).length;
         if(b[i][0] === 'diary') antall = (rader||[]).length;
       }
-      if(!antall){ melding('Dagboken er tom, så det er ingenting å ta vare på ennå.', true); return; }
+      /* Foer sa den nei naar dagboken var tom, selv om det laa bakgrunner
+         der. Bakgrunner er ogsaa arbeid, og skal med i kopien. */
+      if(!alt){ melding('Det er ingenting å ta vare på ennå.', true); return; }
+      var sammendrag = skOppsummer(kopiPer);
       var tekst = JSON.stringify(pakke);
       var blob = new Blob([tekst], {type:'application/json'});
       var navn = 'fotomaleri-sikkerhetskopi-' + idag() + '.json';
       var mb = Math.round(tekst.length/1048576*10)/10;
       var mbTekst = (mb < 0.1 ? 'under 0,1' : String(mb).replace('.',','));
       if(typeof erApple === 'function' && erApple()){
-        skVisLagreknapp(blob, navn, antall, mbTekst);
+        skVisLagreknapp(blob, navn, sammendrag, mbTekst);
         melding('Kopien er klar. Trykk «Lagre eller del fila».');
         return;
       }
       lagreFil(blob, navn);
       try{ localStorage.setItem(SIST, idag()); }catch(e){}
       visSist();
-      melding(antall + ' komposisjoner er lagret i én fil (' + mbTekst + ' MB). Legg den et sted du finner den igjen.');
+      melding(sammendrag + ' er lagret i én fil (' + mbTekst + ' MB). Legg den et sted du finner den igjen.');
     }catch(e){
       melding('Kunne ikke lage sikkerhetskopi: ' + (e && e.message ? e.message : 'ukjent feil'), true);
     }
@@ -5372,6 +5394,10 @@ init();
         return;
       }
       var nye = 0, fantes = 0, oppdatert = 0;
+      /* Tellingen maa holdes per butikk. Foer ble alt talt under ett, saa
+         24 bakgrunner pluss 24 komposisjoner ble meldt som «48 hentet
+         inn», et tall som ikke svarte til noe man kunne se noe sted. */
+      var nyePer = {};
       var b = butikker();
       /* Nyeste utgave vinner. Har du jobbet videre paa telefonen og henter inn
          en eldre kopi fra Mac-en, skal telefonens arbeid staa. Uten dette ville
@@ -5385,7 +5411,7 @@ init();
           if(!rad || !rad.id) continue;
           var gammel = null;
           try{ gammel = await dbGet(b[i][0], rad.id); }catch(e){}
-          if(!gammel){ await dbPut(b[i][0], rad); nye++; }
+          if(!gammel){ await dbPut(b[i][0], rad); nye++; nyePer[b[i][0]] = (nyePer[b[i][0]] || 0) + 1; }
           else if(tid(rad) > tid(gammel)){ await dbPut(b[i][0], rad); oppdatert++; }
           else { fantes++; }
         }
@@ -5403,7 +5429,7 @@ init();
       try{ if(typeof renderPortraitLibrary === 'function') renderPortraitLibrary(); }catch(e){}
       try{ if(typeof updateDiaryShortcut === 'function') updateDiaryShortcut(); }catch(e){}
       var deler = [];
-      if(nye) deler.push(nye + ' hentet inn');
+      if(nye) deler.push(skOppsummer(nyePer) + ' hentet inn');
       if(oppdatert) deler.push(oppdatert + ' oppdatert til en nyere utgave');
       if(fantes) deler.push(fantes + ' lå der fra før og er urørt');
       melding(deler.length
@@ -6882,6 +6908,313 @@ init();
 })();
 </script>
 <!-- ══ slutt kbo-tilbakemelding-blokk ══════════════════════════════ -->
+
+
+<!-- ══ kbo-omvisningsfilm-blokk ════════════════════
+     Filmen der Kristin viser hvordan appen brukes.
+
+     ► SLIK SKRUR DU DEN PAA: lim adressen til filmen inn i FILM under.
+       Saa lenge den staar tom, skjer det ingenting. Appen oppfoerer seg
+       noeyaktig som foer, og ingen ser en knapp som ikke virker.
+
+     Filmen dukker opp i velkomstkortet, som bare vises foerste gang.
+     Etterpaa finner man den igjen paa Omvisning-knappen oeverst.
+     ════════════════════════════════════════════ -->
+<style>
+#kbo-film{
+  position:fixed; inset:0; z-index:2147482000; display:none;
+  background:rgba(26,22,16,.86); padding:20px;
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+}
+#kbo-film.inne{ display:flex; align-items:center; justify-content:center; }
+#kbo-film .ramme{
+  position:relative; width:100%; max-width:900px;
+  background:#1C1813; border-radius:14px; overflow:hidden;
+  box-shadow:0 18px 60px rgba(0,0,0,.5);
+}
+#kbo-film .flate{ position:relative; width:100%; aspect-ratio:16/9; background:#000; }
+#kbo-film .flate > *{ position:absolute; inset:0; width:100%; height:100%; border:0; display:block; }
+#kbo-film .tekst{
+  padding:14px 18px 16px; color:#EFE6D6; background:#1C1813;
+}
+#kbo-film .tekst b{ display:block; font-size:16px; margin:0 0 3px; color:#E3CE9B; font-weight:600; }
+#kbo-film .tekst span{ color:#B5A992; font-size:14px; }
+/* Krysset ligger INNE i rammen. Rammen klipper alt som stikker
+   utenfor, saa et kryss plassert utenfor ville blitt usynlig. */
+#kbo-film .lukk{
+  position:absolute; top:10px; right:10px; z-index:3; width:40px; height:40px;
+  border:0; border-radius:50%; cursor:pointer;
+  background:rgba(28,24,19,.72); color:#FFFDF9; font:22px/1 inherit; padding:0;
+  box-shadow:0 2px 10px rgba(0,0,0,.4);
+}
+#kbo-film .lukk:hover{ background:rgba(28,24,19,.92); }
+@media (max-width:640px){
+  #kbo-film{ padding:14px; }
+  #kbo-film .lukk{ top:8px; right:8px; width:36px; height:36px; font-size:20px; }
+}
+</style>
+<div id="kbo-film" role="dialog" aria-modal="true" aria-label="Omvisning">
+  <div class="ramme">
+    <button type="button" class="lukk" id="kbo-film-lukk" aria-label="Lukk">&times;</button>
+    <div class="flate" id="kbo-film-flate"></div>
+    <div class="tekst"><b id="kbo-film-tittel">Slik gj&oslash;r du det</b><span id="kbo-film-under">Kristin viser deg fremgangsm&aring;ten.</span></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+
+  /* ══ LIM INN ADRESSEN TIL FILMEN HER ══════════════════════════════
+     Eksempel:
+       var FILM = 'https://us.simplerousercontent.net/uploads/asset/file/00000000/omvisning.mp4';
+     YouTube- og Vimeo-adresser virker ogsaa.
+     Staar den tom, er hele denne funksjonen av.                        */
+  var FILM = '';
+  /* ═════════════════════════════════════════════════════════════════ */
+
+  if (!FILM) return;
+
+  var ORD = {
+    no: { knapp: '\u25b6 Se hvordan du gj\u00f8r det', tittel: 'Slik gj\u00f8r du det', under: 'Kristin viser deg fremgangsm\u00e5ten.' },
+    sv: { knapp: '\u25b6 Se hur du g\u00f6r',          tittel: 'S\u00e5 h\u00e4r g\u00f6r du',  under: 'Kristin visar dig hur.' },
+    da: { knapp: '\u25b6 Se hvordan du g\u00f8r det',  tittel: 'S\u00e5dan g\u00f8r du',        under: 'Kristin viser dig fremgangsm\u00e5den.' },
+    en: { knapp: '\u25b6 Watch how it works',           tittel: 'How it works',                    under: 'Kristin shows you the steps.' }
+  };
+
+  /* Appen har fire spraakknapper. Den som er aktiv, forteller hvilket
+     spraak brukeren staar i akkurat naa. */
+  function spraak(){
+    try {
+      var k = document.querySelectorAll('.lang-btn');
+      for (var i = 0; i < k.length; i++){
+        if (k[i].classList.contains('active')) return ['no','sv','da','en'][i] || 'no';
+      }
+    } catch(e){}
+    return 'no';
+  }
+
+  var boks   = document.getElementById('kbo-film');
+  var flate  = document.getElementById('kbo-film-flate');
+  var tittel = document.getElementById('kbo-film-tittel');
+  var under  = document.getElementById('kbo-film-under');
+  if (!boks) return;
+
+  function bygg(){
+    var u = FILM;
+    if (/youtu\.be\/|youtube\.com/.test(u)){
+      var id = (u.match(/[?&]v=([^&]+)/) || u.match(/youtu\.be\/([^?&]+)/) || [])[1];
+      var r = document.createElement('iframe');
+      r.src = 'https://www.youtube-nocookie.com/embed/' + (id || '') + '?rel=0';
+      r.allow = 'accelerometer; encrypted-media; picture-in-picture; fullscreen';
+      r.setAttribute('allowfullscreen','');
+      flate.appendChild(r);
+      return r;
+    }
+    if (/vimeo\.com/.test(u)){
+      var vid = (u.match(/vimeo\.com\/(?:video\/)?(\d+)/) || [])[1];
+      var v = document.createElement('iframe');
+      v.src = 'https://player.vimeo.com/video/' + (vid || '');
+      v.allow = 'autoplay; fullscreen; picture-in-picture';
+      v.setAttribute('allowfullscreen','');
+      flate.appendChild(v);
+      return v;
+    }
+    var f = document.createElement('video');
+    f.src = u; f.controls = true; f.playsInline = true; f.preload = 'none';
+    f.setAttribute('playsinline','');
+    flate.appendChild(f);
+    return f;
+  }
+
+  var spiller = null;
+
+  function aapne(){
+    var o = ORD[spraak()] || ORD.no;
+    tittel.textContent = o.tittel;
+    under.textContent  = o.under;
+    if (!spiller) spiller = bygg();
+    boks.classList.add('inne');
+    try { if (spiller.play) spiller.play(); } catch(e){}
+  }
+
+  function lukk(){
+    boks.classList.remove('inne');
+    try { if (spiller && spiller.pause) spiller.pause(); } catch(e){}
+    /* Innbygde spillere stopper ikke av seg selv, saa de bygges paa nytt. */
+    if (spiller && spiller.tagName === 'IFRAME'){ flate.innerHTML = ''; spiller = null; }
+  }
+
+  document.getElementById('kbo-film-lukk').addEventListener('click', lukk);
+  boks.addEventListener('click', function(e){ if (e.target === boks) lukk(); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && boks.classList.contains('inne')) lukk();
+  });
+
+  /* ── Knappen i velkomstkortet, som bare vises foerste gang ────────── */
+  function settInnKnapp(){
+    var rad = document.querySelector('#welcomeCard .cba-tour-actions');
+    if (!rad || document.getElementById('kbo-film-knapp')) return false;
+
+    var k = document.createElement('button');
+    k.type = 'button';
+    k.id = 'kbo-film-knapp';
+    k.className = 'cba-tour-play';
+    k.textContent = (ORD[spraak()] || ORD.no).knapp;
+    k.addEventListener('click', function(){
+      var wc = document.getElementById('welcomeCard');
+      if (wc) wc.classList.add('hidden');
+      aapne();
+    });
+    rad.insertBefore(k, rad.firstChild);
+
+    /* Den klikkbare omvisningen blir staaende, men som andrevalg. */
+    var gml = document.getElementById('wc-play');
+    if (gml){ gml.className = 'cba-tour-skip'; }
+    return true;
+  }
+
+  /* Spraaket kan byttes mens kortet staar oppe. */
+  function synk(){
+    var k = document.getElementById('kbo-film-knapp');
+    if (k) k.textContent = (ORD[spraak()] || ORD.no).knapp;
+  }
+  document.addEventListener('click', function(e){
+    if (e.target && e.target.classList && e.target.classList.contains('lang-btn')){
+      setTimeout(synk, 60);
+    }
+  }, true);
+
+  /* ── Omvisning-knappen oeverst viser valget paa nytt ──────────────── */
+  function koblePaaToppknapp(){
+    var t = document.getElementById('tourBtn');
+    if (!t || t._kboFilm) return;
+    t._kboFilm = true;
+    t.onclick = null;
+    t.addEventListener('click', function(e){
+      e.preventDefault();
+      var wc = document.getElementById('welcomeCard');
+      if (wc){ settInnKnapp(); wc.classList.remove('hidden'); }
+      else { aapne(); }
+    });
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    var a = settInnKnapp();
+    koblePaaToppknapp();
+    if ((a && document.getElementById('tourBtn')) || forsok > 60) clearInterval(venter);
+  }, 250);
+})();
+</script>
+<!-- ══ slutt kbo-omvisningsfilm-blokk ═══════════════ -->
+
+
+<!-- ══ kbo-tilprint-blokk ════════════════════════
+     Broen til Markedshjelpen laa der fra foer og virker. Det som manglet
+     var at noen skjoente hva knappen var til.
+
+     Tre ting endres, og ingen av dem roerer selve sendingen:
+       1. Navnet. «Markedshjelpen» sier ingenting til den som ikke vet
+          hva Markedshjelpen er. «Send til print» sier hva du faar.
+       2. Plassen. Paa resultatskjermen flyttes den fram som nummer to,
+          rett etter lagreknappen, og faar samme vekt som den.
+       3. En linje under, saa ingen trykker i blinde.
+     ══════════════════════════════ -->
+<style>
+#kbo-print-linje{
+  font-size:12px; line-height:1.55; color:#8a857b; margin:10px 0 0; text-align:center;
+}
+#rm-prisliste-btn.kbo-fram, #vm-prisliste.kbo-fram{ order:-1; }
+</style>
+<script>
+(function(){
+  'use strict';
+
+  var ORD = {
+    no: { knapp:'\ud83d\udda8 Send til print',
+          linje:'\u00absend til print\u00bb \u00e5pner Markedshjelpen med bildet ditt. Der lager du postkort, kalender, prisliste og produktark av det.' },
+    sv: { knapp:'\ud83d\udda8 Skicka till tryck',
+          linje:'\u00abskicka till tryck\u00bb \u00f6ppnar Markedshjelpen med din bild. D\u00e4r g\u00f6r du vykort, kalender, prislista och produktblad av den.' },
+    da: { knapp:'\ud83d\udda8 Send til tryk',
+          linje:'\u00absend til tryk\u00bb \u00e5bner Markedshjelpen med dit billede. Der laver du postkort, kalender, prisliste og produktark af det.' },
+    en: { knapp:'\ud83d\udda8 Send to print',
+          linje:'\u201csend to print\u201d opens Markedshjelpen with your picture. There you turn it into postcards, a calendar, a price list and product sheets.' }
+  };
+
+  /* Appen har fire spraakknapper, og den aktive forteller hvor brukeren
+     staar akkurat naa. */
+  function spraak(){
+    try{
+      var k = document.querySelectorAll('.lang-btn');
+      for(var i = 0; i < k.length; i++){
+        if(k[i].classList.contains('active')) return ['no','sv','da','en'][i] || 'no';
+      }
+    }catch(e){}
+    return 'no';
+  }
+  function O(){ return ORD[spraak()] || ORD.no; }
+
+  function settOm(){
+    var w = O();
+
+    /* Paa skjermen «Bildet ditt er klart». Her er oeyeblikket der noen
+       nettopp har laget noe og er stolt av det. Da skal veien videre
+       vaere like tydelig som lagreknappen, ikke gjemt til slutt. */
+    var r = document.getElementById('rm-prisliste-btn');
+    if(r){
+      r.textContent = w.knapp;
+      r.className = 'btn btn-primary';
+      r.style.flex = '1';
+      r.style.minWidth = '140px';
+      r.title = w.linje;
+      /* Nummer to i rekka: etter lagreknappen, foer nedlastingen. */
+      var ned = document.getElementById('rm-download-btn');
+      if(ned && ned.parentNode === r.parentNode) ned.parentNode.insertBefore(r, ned);
+
+      var rad = r.parentNode;
+      if(rad && !document.getElementById('kbo-print-linje')){
+        var p = document.createElement('p');
+        p.id = 'kbo-print-linje';
+        p.textContent = w.linje;
+        if(rad.parentNode) rad.parentNode.insertBefore(p, rad.nextSibling);
+      }
+    }
+
+    /* I dagboken. Her konkurrerer den med «Send inn til Kristin», som er
+       hennes egen vei inn. Derfor bare fram i rekka og nytt navn, ikke
+       samme vekt som den. */
+    var d = document.getElementById('vm-prisliste');
+    if(d){
+      d.textContent = w.knapp;
+      d.title = w.linje;
+      var last = document.getElementById('vm-download');
+      if(last && last.parentNode === d.parentNode) last.parentNode.insertBefore(d, last);
+    }
+
+    var linje = document.getElementById('kbo-print-linje');
+    if(linje) linje.textContent = w.linje;
+  }
+
+  /* Knappene lever inne i skjermer som bygges opp underveis, saa vi
+     proever til de finnes, og igjen naar spraaket byttes. */
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    settOm();
+    if((document.getElementById('rm-prisliste-btn') && document.getElementById('vm-prisliste')) || forsok > 80){
+      clearInterval(venter);
+    }
+  }, 200);
+
+  document.addEventListener('click', function(e){
+    if(e.target && e.target.classList && e.target.classList.contains('lang-btn')){
+      setTimeout(settOm, 80);
+    }
+  }, true);
+})();
+</script>
+<!-- ══ slutt kbo-tilprint-blokk ═══════════════ -->
 
 </body>
 </html>
