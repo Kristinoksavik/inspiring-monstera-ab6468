@@ -6185,24 +6185,32 @@ init();
           storrelse:'Penselstørrelse', angre:'Angre', nullstill:'Nullstill',
           ferdig:'Ferdig', avbryt:'Avbryt',
           styrke:'Styrke',   /* kbo-styrke */
+          knapp2:'\ud83e\uddfd Visk med bakgrunnen bak',   /* kbo-viskelag */
+          hjelp2:'Her ser du bakgrunnen mens du visker, s\u00e5 du kan tone portrettet ned i landskapet og se det skje. Senk styrken for \u00e5 ta bort bare litt.',
           hjelp:'Dra over bildet for å viske bort det som ble igjen. Rutemønsteret viser hva som er gjennomsiktig. Senker du styrken, visker du bort bare litt, og portrettet tones ned i stedet for å bli borte.',
           feil:'Noe gikk galt, så viskelæret ble lukket. Portrettet ditt er urørt.' },
     sv: { knapp:'🧽 Suddgummi', tittel:'Suddgummi',
           storrelse:'Penselstorlek', angre:'Ångra', nullstill:'Nollställ',
           ferdig:'Klar', avbryt:'Avbryt',
           styrke:'Styrka',
+          knapp2:'\ud83e\uddfd Sudda med bakgrunden bakom',
+          hjelp2:'H\u00e4r ser du bakgrunden medan du suddar, s\u00e5 du kan tona ner portr\u00e4ttet i landskapet och se det h\u00e4nda. S\u00e4nk styrkan f\u00f6r att ta bort bara lite.',
           hjelp:'Dra över bilden för att sudda bort det som blev kvar. Rutmönstret visar vad som är genomskinligt. Sänker du styrkan suddar du bort bara lite, och porträttet tonas ner i stället för att försvinna.',
           feil:'Något gick fel, så suddgummit stängdes. Ditt porträtt är orört.' },
     da: { knapp:'🧽 Viskelæder', tittel:'Viskelæder',
           storrelse:'Penselstørrelse', angre:'Fortryd', nullstill:'Nulstil',
           ferdig:'Færdig', avbryt:'Annuller',
           styrke:'Styrke',
+          knapp2:'\ud83e\uddfd Visk med baggrunden bag',
+          hjelp2:'Her ser du baggrunden, mens du visker, s\u00e5 du kan tone portr\u00e6ttet ned i landskabet og se det ske. S\u00e6nk styrken for at tage lidt v\u00e6k.',
           hjelp:'Træk hen over billedet for at viske det væk, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt. Sænker du styrken, visker du kun lidt væk, og portrættet tones ned i stedet for at forsvinde.',
           feil:'Noget gik galt, så viskelæderet blev lukket. Dit portræt er urørt.' },
     en: { knapp:'🧽 Eraser', tittel:'Eraser',
           storrelse:'Brush size', angre:'Undo', nullstill:'Reset',
           ferdig:'Done', avbryt:'Cancel',
           styrke:'Strength',
+          knapp2:'\ud83e\uddfd Erase with the background behind',
+          hjelp2:'Here you see the background while you erase, so you can fade the portrait into the landscape and watch it happen. Lower the strength to take away only a little.',
           hjelp:'Drag across the image to erase what was left behind. The checkerboard shows what is transparent. Lower the strength to erase only a little, so the portrait fades down instead of disappearing.',
           feil:'Something went wrong, so the eraser was closed. Your portrait is untouched.' }
   };
@@ -6217,6 +6225,10 @@ init();
      tegnes akkurat naa, i full styrke. arbeid er de to lagt sammen, og
      det er arbeid som vises og som lagres til slutt. */
   var ferdig = null, fc = null, mellom = null, mc = null;
+  /* Bakgrunnen vises bak portrettet naar viskelaeret aapnes fra
+     komposisjonssteget. Den ligger paa sitt eget lerret, ellers ville
+     viskingen spist den ogsaa. */
+  var bak = null, medBak = false;
   var strok = [];
   var tegner = false, naa = null;
   var pensel = 40;
@@ -6240,9 +6252,11 @@ init();
     try { if (arbeid){ arbeid.width = 0; arbeid.height = 0; } } catch(e){}
     try { if (ferdig){ ferdig.width = 0; ferdig.height = 0; } } catch(e){}
     try { if (mellom){ mellom.width = 0; mellom.height = 0; } } catch(e){}
+    try { if (bak){ bak.width = 0; bak.height = 0; } } catch(e){}
     over = null; lerret = null; ctx = null;
     arbeid = null; ac = null; basis = null;
     ferdig = null; fc = null; mellom = null; mc = null;
+    bak = null; medBak = false;
     strok = []; naa = null; tegner = false;
   }
 
@@ -6336,6 +6350,34 @@ init();
     mc.restore();
   }
 
+  /* Bakgrunnen slik den ligger bak portrettet i komposisjonen.
+     Regnestykket er det samme som appen bruker naar den setter sammen
+     bildet: portrettet er SIZE ganger scale bredt, og staar sentrert paa
+     portraitPos. Den biten av bakgrunnen hentes ut og strekkes hit. */
+  async function tegnBakgrunn(){
+    if (!bak || !basis || !state.selectedBg) return;
+    var SIZE = 1000;
+    var bilde = await lastBilde(state.selectedBg);
+    var av = document.createElement('canvas');
+    av.width = SIZE; av.height = SIZE;
+    var avc = av.getContext('2d');
+    if (typeof drawCover === 'function') drawCover(avc, bilde, 0, 0, SIZE, SIZE);
+    else avc.drawImage(bilde, 0, 0, SIZE, SIZE);
+    if (state.bgBlur > 0 && typeof boxBlur === 'function'){
+      try { boxBlur(avc, SIZE, SIZE, state.bgBlur); } catch(e){}
+    }
+    var bredde = SIZE * (state.scale || 1);
+    var hoyde  = basis.height * (bredde / basis.width);
+    var px = (state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5;
+    var py = (state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.5;
+    var x0 = SIZE * px - bredde / 2;
+    var y0 = SIZE * py - hoyde / 2;
+    var bc = bak.getContext('2d');
+    bc.clearRect(0, 0, bak.width, bak.height);
+    bc.drawImage(av, x0, y0, bredde, hoyde, 0, 0, bak.width, bak.height);
+    try { av.width = 0; av.height = 0; } catch(e){}
+  }
+
   function vis(){
     if (!lerret || !arbeid) return;
     ctx.clearRect(0, 0, lerret.width, lerret.height);
@@ -6361,10 +6403,11 @@ init();
     return b;
   }
 
-  async function apne(){
+  async function apne(fraKomposisjon){
     if (over) return;
     try {
       if (typeof state === 'undefined' || !state || !state.portraitProcessed) return;
+      medBak = !!fraKomposisjon && !!state.selectedBg;
       basis = await lastBilde(state.portraitProcessed);
       strok = [];
 
@@ -6405,14 +6448,33 @@ init();
       lerret.width = Math.round(basis.width * skala);
       lerret.height = Math.round(basis.height * skala);
       lerret.style.cssText = 'max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;' +
-        'border-radius:10px;background-image:' +
+        'border-radius:10px;' + (medBak ? '' :
+        'background-image:' +
         'linear-gradient(45deg,#e2ded4 25%,transparent 25%),' +
         'linear-gradient(-45deg,#e2ded4 25%,transparent 25%),' +
         'linear-gradient(45deg,transparent 75%,#e2ded4 75%),' +
         'linear-gradient(-45deg,transparent 75%,#e2ded4 75%);' +
-        'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;';
+        'background-size:18px 18px;background-position:0 0,0 9px,9px -9px,-9px 0;');
       ctx = lerret.getContext('2d');
-      midt.appendChild(lerret);
+
+      if (medBak){
+        /* Portrettet ligger i sin egen stoerrelse her, mens bakgrunnen
+           ligger i komposisjonen med sin egen plassering. Derfor klippes
+           den biten av bakgrunnen som faktisk ligger BAK portrettet ut,
+           og strekkes over dette lerretet. Da staar de to i flukt. */
+        var ramme = document.createElement('div');
+        ramme.style.cssText = 'position:relative;display:inline-block;max-width:100%;max-height:100%;line-height:0;';
+        bak = document.createElement('canvas');
+        bak.width = lerret.width; bak.height = lerret.height;
+        bak.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border-radius:10px;';
+        try { bak.style.filter = (typeof cssFilterValueFor === 'function') ? cssFilterValueFor(state.filter) : 'none'; } catch(e){}
+        lerret.style.position = 'relative';
+        ramme.appendChild(bak); ramme.appendChild(lerret);
+        midt.appendChild(ramme);
+        try { await tegnBakgrunn(); } catch(e){}
+      } else {
+        midt.appendChild(lerret);
+      }
 
       var bunn = document.createElement('div');
       bunn.style.cssText = 'background:#fff;border-top:1px solid #ded7c9;padding:16px 16px 20px;';
@@ -6459,7 +6521,7 @@ init();
       rad.appendChild(kAngre); rad.appendChild(kNull);
 
       var hjelp = document.createElement('p');
-      hjelp.textContent = t('hjelp');
+      hjelp.textContent = medBak ? t('hjelp2') : t('hjelp');
       hjelp.style.cssText = 'margin:14px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
 
       bunn.appendChild(boks); bunn.appendChild(boks2); bunn.appendChild(rad); bunn.appendChild(hjelp);
@@ -6517,6 +6579,12 @@ init();
         try {
           state.portraitProcessed = arbeid.toDataURL('image/png');
           if (typeof drawPortraitPreview === 'function') drawPortraitPreview();
+          /* Kom du fra komposisjonen, skal den tegnes opp igjen med det
+             samme, ellers staar det gamle portrettet der og du tror
+             ingenting skjedde. Mellomlageret maa toemmes foerst. */
+          try { if (typeof _portraitImgCache === 'object' && _portraitImgCache) _portraitImgCache.src = null; } catch(e){}
+          if (typeof renderMainCanvas === 'function') { try { renderMainCanvas(); } catch(e){} }
+          if (typeof renderTextCanvas === 'function') { try { renderTextCanvas(); } catch(e){} }
           if (typeof saveWorkingState === 'function') saveWorkingState();
         } catch(err){ nodstopp(err); return; }
         lukk();
@@ -6526,6 +6594,27 @@ init();
   }
 
   /* ── Knappen i portrettsteget ──────────────────────────────────────── */
+  /* Den andre inngangen: i steget der portrettet ligger paa bakgrunnen.
+     Samme verktoey, men her ser du hva som kommer fram naar du visker. */
+  function settInn2(){
+    var boks = document.getElementById('mainCanvasWrap');
+    if (!boks || document.getElementById('pk-knapp2')) return false;
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'pk-knapp2';
+    b.style.cssText = 'display:block;margin:12px auto 0;padding:11px 20px;border-radius:10px;' +
+      'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
+    var sp = document.createElement('span'); sp.id = 'pk-knapp2-tekst';
+    b.appendChild(sp);
+    b.onclick = function(){ apne(true); };
+    boks.parentNode.insertBefore(b, boks.nextSibling);
+    tekstUt();
+    return true;
+  }
+
+  /* NB: knappen i portrettsteget maa kalle apne(false) eksplisitt.
+     Skriver man b.onclick = apne, sendes selve klikkhendelsen inn som
+     foerste argument, og den er alltid sann. Da tror verktoeyet at det
+     ble aapnet fra komposisjonen, og tegner bakgrunn i begge stegene. */
   function settInn(){
     var vert = document.getElementById('portraitPreview');
     if (!vert || document.getElementById('pk-knapp')) return false;
@@ -6537,7 +6626,7 @@ init();
       'border:1px solid #d8cfb8;background:#fff;color:#1a1a1a;font:600 14.5px ' + F + ';cursor:pointer;';
     var sp = document.createElement('span'); sp.id = 'pk-knapp-tekst';
     b.appendChild(sp);
-    b.onclick = apne;
+    b.onclick = function(){ apne(false); };
     boks.parentNode.insertBefore(b, boks.nextSibling);
     tekstUt();
     return true;
@@ -6546,6 +6635,8 @@ init();
   function tekstUt(){
     var e = document.getElementById('pk-knapp-tekst');
     if (e) e.textContent = t('knapp');
+    var e2 = document.getElementById('pk-knapp2-tekst');
+    if (e2) e2.textContent = t('knapp2');
   }
 
   function foelgSpraak(){
@@ -6558,9 +6649,12 @@ init();
   var forsok = 0;
   var venter = setInterval(function(){
     forsok++;
-    var ok = settInn();
-    if (ok) foelgSpraak();
-    if (ok || forsok > 80) clearInterval(venter);
+    var a = settInn();
+    var b2 = settInn2();
+    if (a || b2) foelgSpraak();
+    if ((document.getElementById('pk-knapp') && document.getElementById('pk-knapp2')) || forsok > 80){
+      clearInterval(venter);
+    }
   }, 250);
 
 })();
