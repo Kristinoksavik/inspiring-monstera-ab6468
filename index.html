@@ -6184,22 +6184,26 @@ init();
     no: { knapp:'🧽 Viskelær', tittel:'Viskelær',
           storrelse:'Penselstørrelse', angre:'Angre', nullstill:'Nullstill',
           ferdig:'Ferdig', avbryt:'Avbryt',
-          hjelp:'Dra over bildet for å viske bort det som ble igjen. Rutemønsteret viser hva som er gjennomsiktig.',
+          styrke:'Styrke',   /* kbo-styrke */
+          hjelp:'Dra over bildet for å viske bort det som ble igjen. Rutemønsteret viser hva som er gjennomsiktig. Senker du styrken, visker du bort bare litt, og portrettet tones ned i stedet for å bli borte.',
           feil:'Noe gikk galt, så viskelæret ble lukket. Portrettet ditt er urørt.' },
     sv: { knapp:'🧽 Suddgummi', tittel:'Suddgummi',
           storrelse:'Penselstorlek', angre:'Ångra', nullstill:'Nollställ',
           ferdig:'Klar', avbryt:'Avbryt',
-          hjelp:'Dra över bilden för att sudda bort det som blev kvar. Rutmönstret visar vad som är genomskinligt.',
+          styrke:'Styrka',
+          hjelp:'Dra över bilden för att sudda bort det som blev kvar. Rutmönstret visar vad som är genomskinligt. Sänker du styrkan suddar du bort bara lite, och porträttet tonas ner i stället för att försvinna.',
           feil:'Något gick fel, så suddgummit stängdes. Ditt porträtt är orört.' },
     da: { knapp:'🧽 Viskelæder', tittel:'Viskelæder',
           storrelse:'Penselstørrelse', angre:'Fortryd', nullstill:'Nulstil',
           ferdig:'Færdig', avbryt:'Annuller',
-          hjelp:'Træk hen over billedet for at viske det væk, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt.',
+          styrke:'Styrke',
+          hjelp:'Træk hen over billedet for at viske det væk, der blev tilbage. Ternmønstret viser, hvad der er gennemsigtigt. Sænker du styrken, visker du kun lidt væk, og portrættet tones ned i stedet for at forsvinde.',
           feil:'Noget gik galt, så viskelæderet blev lukket. Dit portræt er urørt.' },
     en: { knapp:'🧽 Eraser', tittel:'Eraser',
           storrelse:'Brush size', angre:'Undo', nullstill:'Reset',
           ferdig:'Done', avbryt:'Cancel',
-          hjelp:'Drag across the image to erase what was left behind. The checkerboard shows what is transparent.',
+          styrke:'Strength',
+          hjelp:'Drag across the image to erase what was left behind. The checkerboard shows what is transparent. Lower the strength to erase only a little, so the portrait fades down instead of disappearing.',
           feil:'Something went wrong, so the eraser was closed. Your portrait is untouched.' }
   };
   function spraak(){ try { if (typeof lang === 'string' && T[lang]) return lang; } catch(e){} return 'no'; }
@@ -6209,9 +6213,14 @@ init();
 
   var basis = null, arbeid = null, ac = null;
   var lerret = null, ctx = null;
+  /* ferdig baerer alle avsluttede strok. mellom baerer det stroket som
+     tegnes akkurat naa, i full styrke. arbeid er de to lagt sammen, og
+     det er arbeid som vises og som lagres til slutt. */
+  var ferdig = null, fc = null, mellom = null, mc = null;
   var strok = [];
   var tegner = false, naa = null;
   var pensel = 40;
+  var styrke = 1;
   var over = null;
   var venterTegn = false, venterVis = false;
 
@@ -6229,8 +6238,11 @@ init();
   function lukk(){
     try { if (over && over.parentNode) over.remove(); } catch(e){}
     try { if (arbeid){ arbeid.width = 0; arbeid.height = 0; } } catch(e){}
+    try { if (ferdig){ ferdig.width = 0; ferdig.height = 0; } } catch(e){}
+    try { if (mellom){ mellom.width = 0; mellom.height = 0; } } catch(e){}
     over = null; lerret = null; ctx = null;
     arbeid = null; ac = null; basis = null;
+    ferdig = null; fc = null; mellom = null; mc = null;
     strok = []; naa = null; tegner = false;
   }
 
@@ -6241,12 +6253,38 @@ init();
     try { alert(melding); } catch(e){}
   }
 
+  /* Bygger opp igjen alle avsluttede strok fra originalen. Brukes av
+     Angre og Nullstill, som fjerner strok fra lista. */
+  function byggFerdig(){
+    fc.clearRect(0, 0, ferdig.width, ferdig.height);
+    fc.drawImage(basis, 0, 0);
+    for (var s = 0; s < strok.length; s++) leggPaa(fc, strok[s]);
+  }
+
+  /* Ett strok, lagt oppaa én gang med sin egen styrke. */
+  function leggPaa(maal, st){
+    tegnIMellom(st);
+    maal.save();
+    maal.globalAlpha = Math.max(0, Math.min(1, st.styrke));
+    maal.globalCompositeOperation = 'destination-out';
+    maal.drawImage(mellom, 0, 0);
+    maal.restore();
+  }
+
   function tegnAlt(){
     if (!ac || !basis) return;
     try {
       ac.clearRect(0, 0, arbeid.width, arbeid.height);
-      ac.drawImage(basis, 0, 0);
-      for (var s = 0; s < strok.length; s++) spillAv(strok[s]);
+      ac.drawImage(ferdig, 0, 0);
+      /* Stroket som tegnes akkurat naa ligger i mellomlerretet, og vises
+         med sin styrke uten aa vaere skrevet inn i ferdig enda. */
+      if (tegner && naa){
+        ac.save();
+        ac.globalAlpha = Math.max(0, Math.min(1, naa.styrke));
+        ac.globalCompositeOperation = 'destination-out';
+        ac.drawImage(mellom, 0, 0);
+        ac.restore();
+      }
       vis();
     } catch(err){ nodstopp(err); }
   }
@@ -6258,7 +6296,12 @@ init();
     requestAnimationFrame(function(){ venterTegn = false; tegnAlt(); });
   }
 
-  function spillAv(st){
+  /* Hele stroket tegnes i mellomlerretet i full styrke. Innenfor ett
+     strok skal penselen daekke helt der den har gaatt flere ganger, ellers
+     ville et krussedull bli flekkete. Styrken settes foerst naar stroket
+     legges oppaa bildet. */
+  function tegnIMellom(st){
+    mc.clearRect(0, 0, mellom.width, mellom.height);
     var pkt = st.punkter;
     if (!pkt.length) return;
     for (var i = 0; i < pkt.length; i++){
@@ -6271,25 +6314,26 @@ init();
      den jevnt ut mot ingenting. Uten det ville hvert drag etterlate en skarp
      skjoet, og utklippet blir hakkete langs haar og skuldre. */
   function flekk(st, x0, y0, x1, y1){
-    if (!ac) return;
+    if (!mc) return;
     var lengde = Math.hypot(x1-x0, y1-y0);
     var steg = Math.max(1, st.r / 5);
     var antall = Math.max(1, Math.ceil(lengde / steg));
-    ac.save();
-    ac.globalCompositeOperation = 'destination-out';
+    mc.save();
+    /* Svart i mellomlerretet. Det er formen paa stroket som lages her,
+       ikke selve viskingen. */
     for (var i = 0; i <= antall; i++){
       var x = x0 + (x1-x0) * (i/antall);
       var y = y0 + (y1-y0) * (i/antall);
-      var g = ac.createRadialGradient(x, y, st.r * 0.18, x, y, st.r);
+      var g = mc.createRadialGradient(x, y, st.r * 0.18, x, y, st.r);
       g.addColorStop(0,    'rgba(0,0,0,1)');
       g.addColorStop(0.45, 'rgba(0,0,0,0.62)');
       g.addColorStop(0.75, 'rgba(0,0,0,0.24)');
       g.addColorStop(0.92, 'rgba(0,0,0,0.06)');
       g.addColorStop(1,    'rgba(0,0,0,0)');
-      ac.fillStyle = g;
-      ac.beginPath(); ac.arc(x, y, st.r, 0, Math.PI*2); ac.fill();
+      mc.fillStyle = g;
+      mc.beginPath(); mc.arc(x, y, st.r, 0, Math.PI*2); mc.fill();
     }
-    ac.restore();
+    mc.restore();
   }
 
   function vis(){
@@ -6328,6 +6372,15 @@ init();
       arbeid.width = basis.width; arbeid.height = basis.height;
       ac = arbeid.getContext('2d');
       ac.drawImage(basis, 0, 0);
+
+      ferdig = document.createElement('canvas');
+      ferdig.width = basis.width; ferdig.height = basis.height;
+      fc = ferdig.getContext('2d');
+      fc.drawImage(basis, 0, 0);
+
+      mellom = document.createElement('canvas');
+      mellom.width = basis.width; mellom.height = basis.height;
+      mc = mellom.getContext('2d');
 
       over = document.createElement('div');
       over.id = 'pk-over';
@@ -6375,19 +6428,41 @@ init();
       s.addEventListener('input', function(){ pensel = parseInt(s.value, 10); });
       boks.appendChild(merke); boks.appendChild(s);
 
+      /* Styrken. Staar paa full som foer, saa ingen opplever at verktoeyet
+         plutselig oppfoerer seg annerledes. Senker man den, tones bildet
+         ned i stedet for aa forsvinne. */
+      var boks2 = document.createElement('div');
+      boks2.style.cssText = 'max-width:420px;margin:0 auto 14px;';
+      var merke2 = document.createElement('label');
+      merke2.style.cssText = 'display:block;font:13px ' + F + ';color:#6f6a61;margin-bottom:5px;';
+      var tall2 = document.createElement('span');
+      tall2.style.cssText = 'float:right;color:#8a857b;';
+      function visStyrke(){ tall2.textContent = Math.round(styrke * 100) + ' %'; }
+      merke2.appendChild(document.createTextNode(t('styrke')));
+      merke2.appendChild(tall2);
+      var s2 = document.createElement('input');
+      s2.type = 'range'; s2.min = 5; s2.max = 100; s2.value = Math.round(styrke * 100);
+      s2.style.cssText = 'width:100%;accent-color:#c4944a;';
+      s2.addEventListener('input', function(){
+        styrke = Math.max(0.05, Math.min(1, parseInt(s2.value, 10) / 100));
+        visStyrke();
+      });
+      visStyrke();
+      boks2.appendChild(merke2); boks2.appendChild(s2);
+
       var rad = document.createElement('div');
       rad.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;';
       var kAngre = knapp('↩ ' + t('angre'), false);
-      kAngre.onclick = function(){ if (strok.length){ strok.pop(); planleggTegn(); } };
+      kAngre.onclick = function(){ if (strok.length){ strok.pop(); byggFerdig(); planleggTegn(); } };
       var kNull = knapp(t('nullstill'), false);
-      kNull.onclick = function(){ strok = []; planleggTegn(); };
+      kNull.onclick = function(){ strok = []; byggFerdig(); planleggTegn(); };
       rad.appendChild(kAngre); rad.appendChild(kNull);
 
       var hjelp = document.createElement('p');
       hjelp.textContent = t('hjelp');
       hjelp.style.cssText = 'margin:14px auto 0;max-width:420px;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;';
 
-      bunn.appendChild(boks); bunn.appendChild(rad); bunn.appendChild(hjelp);
+      bunn.appendChild(boks); bunn.appendChild(boks2); bunn.appendChild(rad); bunn.appendChild(hjelp);
       over.appendChild(topp); over.appendChild(midt); over.appendChild(bunn);
       document.body.appendChild(over);
       tegnAlt();
@@ -6397,12 +6472,11 @@ init();
           e.preventDefault();
           try { lerret.setPointerCapture(e.pointerId); } catch(err){}
           var f = arbeid.width / lerret.width;
-          naa = { r: pensel * f, punkter: [bildepunkt(e)] };
+          naa = { r: pensel * f, styrke: styrke, punkter: [bildepunkt(e)] };
           strok.push(naa);
           tegner = true;
-          var p = naa.punkter[0];
-          flekk(naa, p[0], p[1], p[0], p[1]);
-          planleggVis();
+          tegnIMellom(naa);
+          planleggTegn();
         } catch(err){ nodstopp(err); }
       });
       lerret.addEventListener('pointermove', function(e){
@@ -6412,11 +6486,28 @@ init();
           var p = bildepunkt(e);
           var f = naa.punkter[naa.punkter.length - 1];
           naa.punkter.push(p);
+          /* Bare den nye biten legges til i mellomlerretet. Hele stroket
+             trenger ikke tegnes paa nytt for hver bevegelse. */
           flekk(naa, f[0], f[1], p[0], p[1]);
-          planleggVis();
+          planleggTegn();
         } catch(err){ nodstopp(err); }
       });
-      function slutt(){ tegner = false; naa = null; }
+      /* Naar fingeren slippes, skrives stroket inn i ferdig med sin
+         styrke, én gang. Da kan neste strok begynne paa blanke ark. */
+      function slutt(){
+        if (tegner && naa){
+          try {
+            fc.save();
+            fc.globalAlpha = Math.max(0, Math.min(1, naa.styrke));
+            fc.globalCompositeOperation = 'destination-out';
+            fc.drawImage(mellom, 0, 0);
+            fc.restore();
+            mc.clearRect(0, 0, mellom.width, mellom.height);
+          } catch(err){ nodstopp(err); return; }
+        }
+        tegner = false; naa = null;
+        planleggTegn();
+      }
       lerret.addEventListener('pointerup', slutt);
       lerret.addEventListener('pointercancel', slutt);
       lerret.addEventListener('pointerleave', slutt);
