@@ -742,15 +742,17 @@
     <h2 id="s3-title">Sett sammen og juster</h2>
     <p class="step-sub" id="s3-sub">Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.</p>
 
-    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;" id="s3-mood-label">Stemning</h2>
+    <!-- Bildet først. Stemning og Effekt lå over bildet og dyttet det ned
+         under skjermkanten, så man måtte rulle for å se sitt eget maleri. -->
+    <div class="canvas-wrap" id="mainCanvasWrap">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:14px 0 6px;" id="s3-mood-label">Stemning</h2>
     <div class="filter-grid" id="filterGrid"></div>
 
     <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;" id="s3-effect-label">Effekt på portrettet</h2>
     <div class="filter-grid" id="effectGrid"></div>
-
-    <div class="canvas-wrap" id="mainCanvasWrap">
-      <canvas id="mainCanvas"></canvas>
-    </div>
 
     <div class="slider-card">
       <div class="slider-row">
@@ -6981,22 +6983,22 @@ init();
   'use strict';
 
   var T = {
-    no: { knapp:'🧽 Viskelær', av:'✓ Viskelær på', storrelse:'Penselstørrelse',
+    no: { knapp:'🧽 Viskelær', knapp3:'🧽 Viskelær — med bakgrunnen bak', av:'✓ Viskelær på', storrelse:'Penselstørrelse',
           styrke:'Styrke', mykhet:'Myke kanter', angre:'↩ Angre',
           nullstill:'Tilbakestill', ferdig:'Ferdig',
           hjelp:'Dra over bildet for å viske bort. Senk styrken for å ta bort bare litt, så portrettet toner seg inn i bakgrunnen.',
           feil:'Viskelæret stoppet. Bildet ditt er uendret.' },
-    sv: { knapp:'🧽 Suddgummi', av:'✓ Suddgummi på', storrelse:'Penselstorlek',
+    sv: { knapp:'🧽 Suddgummi', knapp3:'🧽 Suddgummi — med bakgrunden bakom', av:'✓ Suddgummi på', storrelse:'Penselstorlek',
           styrke:'Styrka', mykhet:'Mjuka kanter', angre:'↩ Ångra',
           nullstill:'Återställ', ferdig:'Klar',
           hjelp:'Dra över bilden för att sudda bort. Sänk styrkan för att ta bort bara lite, så tonas porträttet in i bakgrunden.',
           feil:'Suddgummit stoppade. Din bild är oförändrad.' },
-    da: { knapp:'🧽 Viskelæder', av:'✓ Viskelæder på', storrelse:'Penselstørrelse',
+    da: { knapp:'🧽 Viskelæder', knapp3:'🧽 Viskelæder — med baggrunden bag', av:'✓ Viskelæder på', storrelse:'Penselstørrelse',
           styrke:'Styrke', mykhet:'Bløde kanter', angre:'↩ Fortryd',
           nullstill:'Nulstil', ferdig:'Færdig',
           hjelp:'Træk hen over billedet for at viske væk. Sænk styrken for at tage lidt væk, så portrættet toner ind i baggrunden.',
           feil:'Viskelæderet stoppede. Dit billede er uændret.' },
-    en: { knapp:'🧽 Eraser', av:'✓ Eraser on', storrelse:'Brush size',
+    en: { knapp:'🧽 Eraser', knapp3:'🧽 Eraser — with the background behind', av:'✓ Eraser on', storrelse:'Brush size',
           styrke:'Strength', mykhet:'Soft edge', angre:'↩ Undo',
           nullstill:'Reset', ferdig:'Done',
           hjelp:'Drag across the image to erase. Lower the strength to take away just a little, so the portrait blends into the background.',
@@ -7385,6 +7387,18 @@ init();
     return b;
   }
 
+  /* Knappen laa som en liten hvit pille under et stort bilde og forsvant
+     i sidens egen stoey. Her er den like bred som panelet under. */
+  function bred(b){
+    b.style.display = 'block';
+    b.style.margin = '12px auto 0';
+    b.style.width = '100%';
+    b.style.maxWidth = '460px';
+    b.style.padding = '13px 16px';
+    b.style.borderColor = '#c4944a';
+    b.style.font = '600 15px ' + F;
+  }
+
   function oppdaterPanel(){
     ['kbo-v-panel-2','kbo-v-panel-3'].forEach(function(id){
       var p = document.getElementById(id);
@@ -7399,7 +7413,7 @@ init();
       if (!b) return;
       var mitt = (id.slice(-1) === '2') ? 'portrett' : 'komposisjon';
       var aktiv = paa && maal === mitt;
-      b.textContent = aktiv ? t('av') : t('knapp');
+      b.textContent = aktiv ? t('av') : t(mitt === 'portrett' ? 'knapp' : 'knapp3');
       b.style.background = aktiv ? '#c4944a' : '#fff';
       b.style.color = aktiv ? '#fff' : '#1a1a1a';
     });
@@ -7447,16 +7461,16 @@ init();
     if (pv && !document.getElementById('kbo-v-knapp-2')){
       var b2 = knapp(t('knapp'), false, function(){ slaaPaa('portrett'); }, '');
       b2.id = 'kbo-v-knapp-2';
-      b2.style.display = 'block'; b2.style.margin = '12px auto 0';
+      bred(b2);
       pv.appendChild(b2);
       pv.appendChild(lagPanel('kbo-v-panel-2'));
       gjort = true;
     }
     var mw = document.getElementById('mainCanvasWrap');
     if (mw && !document.getElementById('kbo-v-knapp-3')){
-      var b3 = knapp(t('knapp'), false, function(){ slaaPaa('komposisjon'); }, '');
+      var b3 = knapp(t('knapp3'), false, function(){ slaaPaa('komposisjon'); }, '');
       b3.id = 'kbo-v-knapp-3';
-      b3.style.display = 'block'; b3.style.margin = '12px auto 0';
+      bred(b3);
       mw.parentNode.insertBefore(b3, mw.nextSibling);
       mw.parentNode.insertBefore(lagPanel('kbo-v-panel-3'), b3.nextSibling);
       gjort = true;
