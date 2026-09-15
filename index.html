@@ -33,12 +33,15 @@
   .app { max-width: 760px; margin: 0 auto; padding: 1.25rem 1rem 4rem; }
 
   /* ── CBA header ────────────────────────────────────────────────────────── */
-  .cba-header { display:flex; align-items:center; gap:14px; padding:1rem 0 1.25rem; border-bottom:1px solid #e0e0e0; margin-bottom:1.25rem; }
-  .cba-logo { width:72px; height:72px; border-radius:10px; object-fit:cover; flex-shrink:0; }
-  .cba-brand { font-size:11px; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:3px; }
-  .cba-appname { font-size:19px; font-weight:500; }
+  /* Toppen er slanket. Logoen var 72 px og toppfeltet 109 px høyt på hver
+     eneste skjerm; på en iPhone gikk over halve høyden med før maleriet
+     begynte. Nå er logoen 44 px og feltet knappe 70. */
+  .cba-header { display:flex; align-items:center; gap:11px; padding:0.6rem 0 0.7rem; border-bottom:1px solid #e0e0e0; margin-bottom:0.8rem; }
+  .cba-logo { width:44px; height:44px; border-radius:9px; object-fit:cover; flex-shrink:0; }
+  .cba-brand { font-size:10px; font-weight:600; color:#999; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:1px; }
+  .cba-appname { font-size:16px; font-weight:500; line-height:1.25; }
 
-  .lang-row { display:flex; gap:6px; margin-bottom:1rem; }
+  .lang-row { display:flex; gap:6px; margin-bottom:0.7rem; }
   .lang-btn { padding:5px 13px; border-radius:8px; border:1px solid #ddd; background:transparent; font-size:12px; color:#666; cursor:pointer; transition: all 0.12s; }
   .lang-btn:hover { border-color:#c4944a; color:#8a5a20; }
   .lang-btn.active { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
@@ -54,7 +57,17 @@
   .tour-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(196,148,74,0.4); }
 
   /* ── Step navigation ───────────────────────────────────────────────────── */
-  .step-tabs { display:flex; gap:5px; margin-bottom:1.25rem; flex-wrap:wrap; }
+  .step-tabs { display:flex; gap:5px; margin-bottom:0.9rem; flex-wrap:wrap; }
+  /* Med sju trinn ble fanene tre rader på telefon. Der legges de på én rad
+     man kan dra sidelengs i stedet, slik at de tar én radhøyde. */
+  @media (max-width:640px){
+    .step-tabs {
+      flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch;
+      scrollbar-width:none; padding-bottom:2px;
+    }
+    .step-tabs::-webkit-scrollbar { display:none; }
+    .step-tab { flex:0 0 auto; }
+  }
   .step-tab {
     padding:8px 13px; border-radius:18px; border:1.5px solid #e2d8c0;
     background:#fdfaf3; font-size:12px; font-weight:500; cursor:pointer; color:#8a7a5e;
@@ -95,13 +108,19 @@
   /* Naar en bakgrunn er valgt, krymper opplastingsfeltet til en liten lenke.
      Da havner forhaandsvisningen der oeyet allerede er, og «Neste» kommer
      hoeyere opp paa skjermen. Foer dette saa det ut som ingenting skjedde. */
-  #step-1.har-bg .upload-zone {
+  /* Samme oppførsel i begge steg: når du har lastet opp, krymper feltet og
+     sier «last opp et annet» i stedet for å stå der like stort som før. */
+  #step-1.har-bg .upload-zone,
+  #step-2.har-portrett .upload-zone {
     padding:0.7rem 1rem; border-style:solid; border-color:#e6ddc9;
     background:#faf9f6; margin-bottom:0.9rem;
   }
-  #step-1.har-bg .upload-zone .icon { display:none; }
-  #step-1.har-bg .upload-zone .main { font-size:13px; font-weight:500; margin:0; color:#6f6a61; }
-  #step-1.har-bg .upload-zone .sub { display:none; }
+  #step-1.har-bg .upload-zone .icon,
+  #step-2.har-portrett .upload-zone .icon { display:none; }
+  #step-1.har-bg .upload-zone .main,
+  #step-2.har-portrett .upload-zone .main { font-size:13px; font-weight:500; margin:0; color:#6f6a61; }
+  #step-1.har-bg .upload-zone .sub,
+  #step-2.har-portrett .upload-zone .sub { display:none; }
 
   /* ── Pexels-søk (portrett) ── */
   .pexels-box { margin:1rem 0 0; }
@@ -221,8 +240,12 @@
      bildet i det øyeblikket siden blir lang nok til å få rullefelt. */
   html { scrollbar-gutter: stable; }
 
+  /* Én størrelse på arbeidsbildet i alle trinn. Taket følger vindushøyden,
+     slik at bildet og knappene under det får plass på samme skjerm — da
+     slipper man å rulle fram og tilbake for å se hva man gjør. */
   .canvas-wrap {
     position:relative; width:100%; aspect-ratio:1;
+    max-width:min(100%, 56vh); margin-left:auto; margin-right:auto;
     background:#fff;
     border:1px solid #e0e0e0; border-radius:14px; overflow:hidden;
     margin-bottom:1rem;
@@ -333,7 +356,7 @@
   }
 
   /* ── Small helpers ─────────────────────────────────────────────────────── */
-  .nav-row { display:flex; justify-content:space-between; gap:8px; margin-top:1.5rem; }
+  .nav-row { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:1.5rem; flex-wrap:wrap; }
   .hidden { display:none !important; }
   .muted { color:#888; font-size:12px; }
   .pill {
@@ -642,10 +665,11 @@
   <div class="step-tabs">
     <button class="step-tab active" id="tab-1" onclick="gotoStep(1)"><span class="num">1</span><span id="ttl-1">Bakgrunn</span></button>
     <button class="step-tab" id="tab-2" onclick="gotoStep(2)"><span class="num">2</span><span id="ttl-2">Portrett</span></button>
-    <button class="step-tab" id="tab-3" onclick="gotoStep(3)"><span class="num">3</span><span id="ttl-3">Stemning</span></button>
-    <button class="step-tab" id="tab-4" onclick="gotoStep(4)"><span class="num">4</span><span id="ttl-4">Tekst</span></button>
-    <button class="step-tab" id="tab-5" onclick="gotoStep(5)"><span class="num">5</span><span id="ttl-5">Signatur</span></button>
-    <button class="step-tab" id="tab-6" onclick="gotoStep(6)"><span class="num">6</span><span id="ttl-6">Dagbok</span></button>
+    <button class="step-tab" id="tab-3" onclick="gotoStep(3)"><span class="num">3</span><span id="ttl-3">Sett sammen</span></button>
+    <button class="step-tab" id="tab-4" onclick="gotoStep(4)"><span class="num">4</span><span id="ttl-4">Stemning</span></button>
+    <button class="step-tab" id="tab-5" onclick="gotoStep(5)"><span class="num">5</span><span id="ttl-5">Tekst</span></button>
+    <button class="step-tab" id="tab-6" onclick="gotoStep(6)"><span class="num">6</span><span id="ttl-6">Signatur</span></button>
+    <button class="step-tab" id="tab-7" onclick="gotoStep(7)"><span class="num">7</span><span id="ttl-7">Dagbok</span></button>
   </div>
 
   <!-- ═══════════ STEP 1: BACKGROUND ═══════════ -->
@@ -670,7 +694,7 @@
     </div>
 
     <div class="nav-row">
-      <button class="btn btn-secondary hidden" id="s1-diary-shortcut" onclick="gotoStep(6)">📔 <span id="s1-diary-text">Se dagbok</span></button>
+      <button class="btn btn-secondary hidden" id="s1-diary-shortcut" onclick="gotoStep(7)">📔 <span id="s1-diary-text">Se dagbok</span></button>
       <button class="btn btn-secondary" id="s1-skipbg" onclick="skipBg()" style="font-size:13px;">Fortsett uten bakgrunn →</button>
       <button class="btn btn-primary" id="s1-next" onclick="gotoStep(2)" disabled>Neste →</button>
     </div>
@@ -694,23 +718,6 @@
       <div class="sub" id="s2-upload-sub">På mobil: åpner kameraet</div>
     </label>
 
-    <!-- Pexels-søk: finn et portrettmotiv direkte i appen -->
-    <div class="pexels-box">
-      <div class="pexels-or" id="s2-pex-title">Eller søk etter et bilde</div>
-      <div class="pexels-search-row">
-        <input type="text" id="pexelsQuery" class="pexels-input" placeholder="" autocomplete="off">
-        <button class="btn btn-secondary pexels-search-btn" id="pexelsSearchBtn" type="button">
-          <span id="s2-pex-btn">Søk</span>
-        </button>
-      </div>
-      <p class="pexels-hint" id="s2-pex-hint" style="margin:6px 0 0; font-size:12px; color:#888;"></p>
-      <div class="pexels-status" id="pexelsStatus" style="display:none;"></div>
-      <div class="pexels-grid" id="pexelsGrid"></div>
-      <div id="pexelsClearRow" class="hidden" style="text-align:center; margin-top:8px;">
-        <button class="btn btn-secondary" id="pexelsClearBtn" type="button" onclick="clearPexels()" style="font-size:13px;">✕ <span id="s2-pex-clear">Tøm søk</span></button>
-      </div>
-    </div>
-
     <div id="bgRemovalStatus" class="hidden"></div>
 
     <div id="portraitPreview" class="hidden" style="margin-top:1rem;">
@@ -728,31 +735,46 @@
       </div>
     </div>
 
+    <!-- Søket ligger nederst. Resultatet av opplastingen skal være det
+         første man ser, ikke noe man må rulle forbi et søkefelt for å finne. -->
+    <!-- Pexels-søk: finn et portrettmotiv direkte i appen -->
+    <div class="pexels-box">
+      <div class="pexels-or" id="s2-pex-title">Eller søk etter et bilde</div>
+      <div class="pexels-search-row">
+        <input type="text" id="pexelsQuery" class="pexels-input" placeholder="" autocomplete="off">
+        <button class="btn btn-secondary pexels-search-btn" id="pexelsSearchBtn" type="button">
+          <span id="s2-pex-btn">Søk</span>
+        </button>
+      </div>
+      <p class="pexels-hint" id="s2-pex-hint" style="margin:6px 0 0; font-size:12px; color:#888;"></p>
+      <div class="pexels-status" id="pexelsStatus" style="display:none;"></div>
+      <div class="pexels-grid" id="pexelsGrid"></div>
+      <div id="pexelsClearRow" class="hidden" style="text-align:center; margin-top:8px;">
+        <button class="btn btn-secondary" id="pexelsClearBtn" type="button" onclick="clearPexels()" style="font-size:13px;">✕ <span id="s2-pex-clear">Tøm søk</span></button>
+      </div>
+    </div>
+
     <div class="nav-row">
       <button class="btn btn-secondary" onclick="gotoStep(1)">← <span id="s2-back">Tilbake</span></button>
-      <button class="btn btn-primary" id="s2-next" onclick="gotoStep(3)" disabled>Neste →</button>
-    </div>
-    <div style="text-align:center; margin-top:0.5rem;">
+      <!-- På samme linje som Tilbake og Neste. Den lå på en egen rad under
+           og ga et unødig hopp i høyden. -->
       <button class="btn btn-secondary" id="s2-skip" onclick="skipPortrait()" style="font-size:13px;">Fortsett uten portrett →</button>
+      <button class="btn btn-primary" id="s2-next" onclick="gotoStep(3)" disabled>Neste →</button>
     </div>
   </div>
 
   <!-- ═══════════ STEP 3: MOOD / COMPOSITION ═══════════ -->
   <div class="step" id="step-3">
     <h2 id="s3-title">Sett sammen og juster</h2>
-    <p class="step-sub" id="s3-sub">Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.</p>
+    <p class="step-sub" id="s3-sub">Dra portrettet for å flytte det. Juster synlighet, størrelse og dybde under bildet.</p>
 
-    <!-- Bildet først. Stemning og Effekt lå over bildet og dyttet det ned
-         under skjermkanten, så man måtte rulle for å se sitt eget maleri. -->
-    <div class="canvas-wrap" id="mainCanvasWrap">
-      <canvas id="mainCanvas"></canvas>
+    <!-- Bildet bor her, men lånes ut til stemningstrinnet. Se flyttLerret. -->
+    <div id="kbo-komposisjon-plass">
+      <div class="canvas-wrap" id="mainCanvasWrap">
+        <canvas id="mainCanvas"></canvas>
+      </div>
     </div>
 
-    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:14px 0 6px;" id="s3-mood-label">Stemning</h2>
-    <div class="filter-grid" id="filterGrid"></div>
-
-    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;" id="s3-effect-label">Effekt på portrettet</h2>
-    <div class="filter-grid" id="effectGrid"></div>
 
     <div class="slider-card">
       <div class="slider-row">
@@ -764,7 +786,10 @@
     <div class="slider-card">
       <div class="slider-row">
         <span class="slider-label" id="s3-scale">Størrelse</span>
-        <input type="range" id="scaleSlider" min="8" max="300" value="80">
+        <!-- Taket var 300 %. Da sto 80 bare en fjerdedel ute på sporet mens
+             teksten sa 80 %, og knappen så ut til å lyve. Med 200 som tak
+             ligger 100 % omtrent midt på. -->
+        <input type="range" id="scaleSlider" min="8" max="200" value="80">
         <span class="slider-value" id="scaleVal">80%</span>
       </div>
     </div>
@@ -783,8 +808,33 @@
     </div>
   </div>
 
-  <!-- ═══════════ STEP 4: TEXT ═══════════ -->
+  <!-- ═══════════ STEP 4: MOOD ═══════════
+       Stemningen fikk sitt eget trinn fordi rutene enten dyttet maleriet
+       under skjermkanten eller havnet saa langt ned at man maatte rulle
+       fram og tilbake for aa se hva man valgte. Bildet flyttes hit fra
+       trinn 3 naar du kommer inn, og tilbake naar du gaar ut — det er det
+       samme lerretet, saa filter, dra-for-aa-flytte og viskelaeret foelger
+       med av seg selv. -->
   <div class="step" id="step-4">
+    <h2 id="s3b-title">Velg stemning</h2>
+    <p class="step-sub" id="s3b-sub">Stemningen legger seg over hele bildet. Effekten legger seg bare på portrettet.</p>
+
+    <div id="kbo-stemning-plass"></div>
+
+    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:14px 0 6px;" id="s3-mood-label">Stemning</h2>
+    <div class="filter-grid" id="filterGrid"></div>
+
+    <h2 style="font-size:12px; color:#888; text-transform:uppercase; letter-spacing:0.06em; margin:10px 0 6px;" id="s3-effect-label">Effekt på portrettet</h2>
+    <div class="filter-grid" id="effectGrid"></div>
+
+    <div class="nav-row">
+      <button class="btn btn-secondary" onclick="gotoStep(3)">← <span id="s3b-back">Tilbake</span></button>
+      <button class="btn btn-primary" onclick="gotoStep(5)">Neste →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STEP 4: TEXT ═══════════ -->
+  <div class="step" id="step-5">
     <h2 id="s4-title">Legg til tekst (valgfritt)</h2>
     <p class="step-sub" id="s4-sub">Skriv et sitat, en dato, eller la stå tom. Dra teksten i forhåndsvisningen for å plassere den.</p>
 
@@ -830,13 +880,13 @@
     </div>
 
     <div class="nav-row">
-      <button class="btn btn-secondary" onclick="gotoStep(3)">← <span id="s4-back">Tilbake</span></button>
-      <button class="btn btn-primary" onclick="gotoStep(5)" id="s4-next">Neste →</button>
+      <button class="btn btn-secondary" onclick="gotoStep(4)">← <span id="s4-back">Tilbake</span></button>
+      <button class="btn btn-primary" onclick="gotoStep(6)" id="s4-next">Neste →</button>
     </div>
   </div>
 
   <!-- ═══════════ STEP 5: SIGNATURE ═══════════ -->
-  <div class="step" id="step-5">
+  <div class="step" id="step-6">
     <h2 id="s5sig-title">Legg til signatur (valgfritt)</h2>
     <p class="step-sub" id="s5sig-sub">Signér verket ditt med navnet ditt i håndskrift. Dra signaturen i forhåndsvisningen for å plassere den.</p>
 
@@ -888,21 +938,26 @@
     </div>
 
     <div class="nav-row">
-      <button class="btn btn-secondary" onclick="gotoStep(4)">← <span id="s5sig-back">Tilbake</span></button>
+      <button class="btn btn-secondary" onclick="gotoStep(5)">← <span id="s5sig-back">Tilbake</span></button>
       <button class="btn btn-primary" onclick="saveAndContinue()" id="s5sig-save">Lagre i dagbok →</button>
     </div>
   </div>
 
   <!-- ═══════════ STEP 6: DIARY ═══════════ -->
-  <div class="step" id="step-6">
+  <div class="step" id="step-7">
     <h2 id="s5-title">Min dagbok</h2>
     <p class="step-sub" id="s5-sub">Alle dine komposisjoner er lagret lokalt. Tap på en for å se den større, last ned eller slett.</p>
+
+    <!-- Det man som oftest vil gjoere herfra er aa begynne paa noe nytt.
+         Da skal knappen staa foer maleriene, ikke under dem. -->
+    <div class="nav-row" style="margin-top:0.2rem; margin-bottom:1.1rem;">
+      <button class="btn btn-primary" onclick="newComposition()">+ <span id="s5-new">Ny komposisjon</span></button>
+      <button class="btn btn-secondary" id="exportAllBtn" onclick="exportAllAsPdf()">📄 <span id="s5-pdf">Eksporter som PDF</span></button>
+    </div>
 
     <div class="diary-grid" id="diaryGrid"></div>
 
     <div class="nav-row">
-      <button class="btn btn-secondary" onclick="newComposition()">+ <span id="s5-new">Ny komposisjon</span></button>
-      <button class="btn btn-secondary" id="exportAllBtn" onclick="exportAllAsPdf()">📄 <span id="s5-pdf">Eksporter som PDF</span></button>
       <button class="btn btn-secondary" id="skNedBtn" onclick="sikkerhetskopiLastNed()" title="Lag en sikkerhetskopi av hele dagboken">💾 Lag sikkerhetskopi</button>
       <button class="btn btn-secondary" id="skInnBtn" onclick="sikkerhetskopiHentInn()" title="Hent inn en sikkerhetskopi du har lagret før">📥 Hent inn sikkerhetskopi</button>
     </div>
@@ -1096,7 +1151,7 @@
 const UI = {
   no: {
     appName: 'Fotomaleri med Kristins metode',
-    tabs: ['Bakgrunn', 'Portrett', 'Stemning', 'Tekst', 'Signatur', 'Dagbok'],
+    tabs: ['Bakgrunn', 'Portrett', 'Sett sammen', 'Stemning', 'Tekst', 'Signatur', 'Dagbok'],
     s1: { title:'Velg eller last opp en bakgrunn',
           sub:'Last opp et bilde av maleriet ditt — eller en tekstur, himmel, eller annet du vil bruke som bakgrunn. Bakgrunner du laster opp lagres slik at du kan bruke dem igjen.',
           uploadMain:'Last opp bakgrunn', uploadSub:'JPG, PNG, WEBP — tap eller dra hit',
@@ -1105,6 +1160,7 @@ const UI = {
     s2: { title:'Last opp et portrett',
           sub:'Bruk et bilde av en person, et dyr, eller et objekt. Bakgrunnen fjernes automatisk.',
           uploadMain:'Last opp eller ta bilde', uploadSub:'På mobil: åpner kameraet',
+          uploadAnnen:'↻ Last opp et annet portrett',
           resultTitle:'Resultat', redo:'Prøv AI på nytt', newPic:'Velg nytt bilde', back:'Tilbake',
           skip:'Fortsett uten portrett →',
           working:'Fjerner bakgrunn — kan ta opptil ett minutt første gang …',
@@ -1116,7 +1172,9 @@ const UI = {
           error:'Noe gikk galt. Prøv et annet bilde, eller forsøk på nytt.',
           pexTitle:'Eller søk etter et bilde', pexSearch:'Søk etter bilde …', pexBtn:'Søk', pexHint:'F.eks. «kvinne», «hund», «mann portrett». Trykk et bilde for å bruke det som portrett.', pexSearching:'Søker …', pexNone:'Ingen treff. Prøv et annet søkeord.', pexBusy:'Pexels er travelt akkurat nå. Prøv igjen om litt.', pexError:'Kunne ikke søke akkurat nå. Sjekk nettforbindelsen.', pexAdding:'Henter bilde …', pexClear:'Tøm søk', pCrop:'Dra for å velge utsnitt' },
     s3: { title:'Sett sammen og juster',
-          sub:'Velg en stemning, juster gjennomsiktighet og plassering. Dra portrettet for å flytte det.',
+          sub:'Dra portrettet for å flytte det. Juster synlighet, størrelse og dybde under bildet.',
+          moodTitle:'Velg stemning',
+          moodSub:'Stemningen legger seg over hele bildet. Effekten legger seg bare på portrettet.',
           moodLabel:'Stemning',
           effectLabel:'Effekt på portrettet',
           opacity:'Synlighet', scale:'Størrelse', bgblur:'Dybde', bgblurHint:'Gjør bakgrunnen uskarp så personen fremheves — som i fotografering med dybdeskarphet.', back:'Tilbake' },
@@ -1199,7 +1257,7 @@ const UI = {
   },
   sv: {
     appName: 'Fotomålning med Kristins metod',
-    tabs: ['Bakgrund', 'Porträtt', 'Stämning', 'Text', 'Signatur', 'Dagbok'],
+    tabs: ['Bakgrund', 'Porträtt', 'Sätt ihop', 'Stämning', 'Text', 'Signatur', 'Dagbok'],
     s1: { title:'Välj eller ladda upp en bakgrund',
           sub:'Ladda upp en bild av din målning — eller en textur, himmel eller annat du vill använda som bakgrund. Bakgrunder du laddar upp sparas så att du kan använda dem igen.',
           uploadMain:'Ladda upp bakgrund', uploadSub:'JPG, PNG, WEBP — tryck eller dra hit',
@@ -1208,6 +1266,7 @@ const UI = {
     s2: { title:'Ladda upp ett porträtt',
           sub:'Använd en bild av en person, ett djur eller ett föremål. Bakgrunden tas bort automatiskt.',
           uploadMain:'Ladda upp eller ta bild', uploadSub:'På mobil: öppnar kameran',
+          uploadAnnen:'↻ Ladda upp ett annat porträtt',
           resultTitle:'Resultat', redo:'Försök AI igen', newPic:'Välj ny bild', back:'Tillbaka',
           skip:'Fortsätt utan porträtt →',
           working:'Tar bort bakgrunden — kan ta upp till en minut första gången …',
@@ -1219,7 +1278,9 @@ const UI = {
           error:'Något gick fel. Prova en annan bild eller försök igen.',
           pexTitle:'Eller sök efter en bild', pexSearch:'Sök efter bild …', pexBtn:'Sök', pexHint:'T.ex. «kvinna», «hund», «man porträtt». Tryck på en bild för att använda den som porträtt.', pexSearching:'Söker …', pexNone:'Inga träffar. Prova ett annat sökord.', pexBusy:'Pexels är upptaget just nu. Försök igen om en stund.', pexError:'Kunde inte söka just nu. Kontrollera nätverket.', pexAdding:'Hämtar bild …', pexClear:'Rensa sökning', pCrop:'Dra för att välja utsnitt' },
     s3: { title:'Sätt ihop och justera',
-          sub:'Välj en stämning, justera genomskinlighet och placering. Dra porträttet för att flytta det.',
+          sub:'Dra porträttet för att flytta det. Justera synlighet, storlek och djup under bilden.',
+          moodTitle:'Välj stämning',
+          moodSub:'Stämningen läggs över hela bilden. Effekten läggs bara på porträttet.',
           moodLabel:'Stämning',
           effectLabel:'Effekt på porträttet',
           opacity:'Synlighet', scale:'Storlek', bgblur:'Djup', bgblurHint:'Gör bakgrunden oskarp så personen framhävs — som i fotografering med skärpedjup.', back:'Tillbaka' },
@@ -1302,7 +1363,7 @@ const UI = {
   },
   da: {
     appName: 'Fotomaleri med Kristins metode',
-    tabs: ['Baggrund', 'Portræt', 'Stemning', 'Tekst', 'Signatur', 'Dagbog'],
+    tabs: ['Baggrund', 'Portræt', 'Sæt sammen', 'Stemning', 'Tekst', 'Signatur', 'Dagbog'],
     s1: { title:'Vælg eller upload en baggrund',
           sub:'Upload et billede af dit maleri — eller en tekstur, himmel eller andet, du vil bruge som baggrund. Baggrunde, du uploader, gemmes, så du kan bruge dem igen.',
           uploadMain:'Upload baggrund', uploadSub:'JPG, PNG, WEBP — tryk eller træk hertil',
@@ -1311,6 +1372,7 @@ const UI = {
     s2: { title:'Upload et portræt',
           sub:'Brug et billede af en person, et dyr eller en genstand. Baggrunden fjernes automatisk.',
           uploadMain:'Upload eller tag billede', uploadSub:'På mobil: åbner kameraet',
+          uploadAnnen:'↻ Upload et andet portræt',
           resultTitle:'Resultat', redo:'Prøv AI igen', newPic:'Vælg nyt billede', back:'Tilbage',
           skip:'Fortsæt uden portræt →',
           working:'Fjerner baggrund — kan tage op til et minut første gang …',
@@ -1322,7 +1384,9 @@ const UI = {
           error:'Noget gik galt. Prøv et andet billede, eller prøv igen.',
           pexTitle:'Eller søg efter et billede', pexSearch:'Søg efter billede …', pexBtn:'Søg', pexHint:'F.eks. «kvinde», «hund», «mand portræt». Tryk på et billede for at bruge det som portræt.', pexSearching:'Søger …', pexNone:'Ingen resultater. Prøv et andet søgeord.', pexBusy:'Pexels er travlt lige nu. Prøv igen om lidt.', pexError:'Kunne ikke søge lige nu. Tjek netforbindelsen.', pexAdding:'Henter billede …', pexClear:'Ryd søgning', pCrop:'Træk for at vælge udsnit' },
     s3: { title:'Sæt sammen og juster',
-          sub:'Vælg en stemning, juster gennemsigtighed og placering. Træk portrættet for at flytte det.',
+          sub:'Træk portrættet for at flytte det. Juster synlighed, størrelse og dybde under billedet.',
+          moodTitle:'Vælg stemning',
+          moodSub:'Stemningen lægger sig over hele billedet. Effekten lægger sig kun på portrættet.',
           moodLabel:'Stemning',
           effectLabel:'Effekt på portrættet',
           opacity:'Synlighed', scale:'Størrelse', bgblur:'Dybde', bgblurHint:'Gør baggrunden uskarp så personen fremhæves — som i fotografering med dybdeskarphed.', back:'Tilbage' },
@@ -1405,7 +1469,7 @@ const UI = {
   },
   en: {
     appName: "Photo Painting with Kristin's Method",
-    tabs: ['Background', 'Portrait', 'Mood', 'Text', 'Signature', 'Diary'],
+    tabs: ['Background', 'Portrait', 'Compose', 'Mood', 'Text', 'Signature', 'Diary'],
     s1: { title:'Choose or upload a background',
           sub:'Upload a photo of your painting — or a texture, sky, or anything you want as a background. Backgrounds you upload are saved so you can reuse them.',
           uploadMain:'Upload background', uploadSub:'JPG, PNG, WEBP — tap or drag here',
@@ -1414,6 +1478,7 @@ const UI = {
     s2: { title:'Upload a portrait',
           sub:'Use a photo of a person, a pet, or an object. The background is removed automatically.',
           uploadMain:'Upload or take a photo', uploadSub:'On mobile: opens the camera',
+          uploadAnnen:'↻ Upload a different portrait',
           resultTitle:'Result', redo:'Try AI again', newPic:'Choose new image', back:'Back',
           skip:'Continue without portrait →',
           working:'Removing background — may take up to a minute the first time …',
@@ -1425,7 +1490,9 @@ const UI = {
           error:'Something went wrong. Try a different image, or try again.',
           pexTitle:'Or search for an image', pexSearch:'Search for an image …', pexBtn:'Search', pexHint:'E.g. "woman", "dog", "man portrait". Tap an image to use it as a portrait.', pexSearching:'Searching …', pexNone:'No results. Try another search word.', pexBusy:'Pexels is busy right now. Try again in a moment.', pexError:'Couldn\'t search right now. Check your connection.', pexAdding:'Fetching image …', pexClear:'Clear search', pCrop:'Drag to choose the crop' },
     s3: { title:'Compose and adjust',
-          sub:'Pick a mood, adjust opacity and position. Drag the portrait to move it.',
+          sub:'Drag the portrait to move it. Adjust visibility, size and depth below the image.',
+          moodTitle:'Pick a mood',
+          moodSub:'The mood covers the whole image. The effect only touches the portrait.',
           moodLabel:'Mood',
           effectLabel:'Portrait effect',
           opacity:'Opacity', scale:'Size', bgblur:'Depth', bgblurHint:'Blurs the background so the subject stands out — like depth of field in photography.', back:'Back' },
@@ -1890,7 +1957,7 @@ async function restoreWorkingState() {
   if (si) si.value = state.sig || '';
 
   // Return the user to the step they were on
-  const step = (saved.currentStep && saved.currentStep >= 1 && saved.currentStep <= 6)
+  const step = (saved.currentStep && saved.currentStep >= 1 && saved.currentStep <= 7)
     ? saved.currentStep : 1;
   gotoStep(step);
   return true;
@@ -1900,6 +1967,51 @@ async function restoreWorkingState() {
 // NAVIGATION
 // ═══════════════════════════════════════════════════════════════════════════
 let currentStep = 1;
+/* Flytter bildet, viskelaerknappen og viskelaerpanelet mellom trinn 3 og
+   trinn 4. Ett lerret, to steder — i stedet for to lerret som maa holdes
+   like. */
+function flyttLerret(n) {
+  const wrap = document.getElementById('mainCanvasWrap');
+  const plass = document.getElementById('kbo-stemning-plass');
+  const hjem = document.getElementById('kbo-komposisjon-plass');
+  if (!wrap || !plass || !hjem) return;
+  const flokk = [wrap];
+  const kn = document.getElementById('kbo-v-knapp-3');
+  const pn = document.getElementById('kbo-v-panel-3');
+  if (kn) flokk.push(kn);
+  if (pn) flokk.push(pn);
+  const maal = (n === 4) ? plass : hjem;
+  if (wrap.parentNode === maal) return;
+  flokk.forEach(el => maal.appendChild(el));
+}
+
+/* Stemning og effekt hører til ett bilde, ikke til appen. Laster du opp et
+   nytt portrett, skal du starte med blanke ark i stedet for å arve forrige
+   malings stemning uten å ha bedt om det. */
+/* Opplastingsfeltet i portrettsteget: krymper og bytter tekst når det
+   ligger et portrett der, akkurat som bakgrunnsfeltet i trinn 1. */
+function oppdaterPortrettfelt() {
+  const steg = document.getElementById('step-2');
+  const m = document.getElementById('s2-upload-main');
+  if (!steg || !m) return;
+  const L = (typeof UI !== 'undefined' && UI[lang]) ? UI[lang] : null;
+  const har = !!state.portraitProcessed;
+  steg.classList.toggle('har-portrett', har);
+  if (har) {
+    m.textContent = (L && L.s2 && L.s2.uploadAnnen) ? L.s2.uploadAnnen : '↻ Last opp et annet portrett';
+  } else {
+    m.textContent = (L && L.s2) ? L.s2.uploadMain : 'Last opp eller ta bilde';
+  }
+}
+
+function nullstillStemning() {
+  state.filter = 'none';
+  state.effect = 'none';
+  try { renderFilters(); renderEffects(); } catch (e) { /* ikke kritisk */ }
+  const c = document.getElementById('mainCanvas');
+  if (c) c.style.filter = 'none';
+}
+
 function gotoStep(n) {
   currentStep = n;
   // Safety net: if going to step 3 or later without a selected bg but library has items, pick first
@@ -1907,7 +2019,10 @@ function gotoStep(n) {
     state.selectedBg = state.bgLibrary[0].dataUrl;
     state.selectedBgId = state.bgLibrary[0].id;
   }
-  for (let i = 1; i <= 6; i++) {
+  /* Bildet bor i trinn 3, men laanes ut til stemningstrinnet. Flyttingen
+     skjer foer trinnene vises, ellers ser man et tomt felt et oeyeblikk. */
+  flyttLerret(n);
+  for (let i = 1; i <= 7; i++) {
     document.getElementById('step-' + i).classList.toggle('visible', i === n);
     const tab = document.getElementById('tab-' + i);
     tab.classList.toggle('active', i === n);
@@ -1922,10 +2037,10 @@ function gotoStep(n) {
     saveBtn.textContent = state.editingId ? UI[lang].s4.update : UI[lang].s4.save;
   }
 
-  if (n === 3) renderMainCanvas();
-  if (n === 4) renderTextCanvas();
-  if (n === 5) renderSigCanvas();
-  if (n === 6) renderDiary();
+  if (n === 3 || n === 4) renderMainCanvas();
+  if (n === 5) renderTextCanvas();
+  if (n === 6) renderSigCanvas();
+  if (n === 7) renderDiary();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   scheduleSaveWorkingState();
 }
@@ -2015,7 +2130,7 @@ function setLang(l) {
   });
   const L = UI[l];
   document.getElementById('appName').textContent = L.appName;
-  for (let i = 0; i < 6; i++) document.getElementById('ttl-' + (i+1)).textContent = L.tabs[i];
+  for (let i = 0; i < 7; i++) document.getElementById('ttl-' + (i+1)).textContent = L.tabs[i];
   // Tour button text
   const tourBtnText = document.getElementById('tour-btn-text');
   if (tourBtnText && L.welcome && L.welcome.btn) tourBtnText.textContent = L.welcome.btn;
@@ -2037,6 +2152,7 @@ function setLang(l) {
   document.getElementById('s2-title').textContent = L.s2.title;
   document.getElementById('s2-sub').textContent = L.s2.sub;
   document.getElementById('s2-upload-main').textContent = L.s2.uploadMain;
+  oppdaterPortrettfelt();
   document.getElementById('s2-upload-sub').textContent = L.s2.uploadSub;
   document.getElementById('s2-result-title').textContent = L.s2.resultTitle;
   document.getElementById('s2-redo').textContent = L.s2.redo;
@@ -2059,6 +2175,12 @@ function setLang(l) {
   // Step 3
   document.getElementById('s3-title').textContent = L.s3.title;
   document.getElementById('s3-sub').textContent = L.s3.sub;
+  const s3bT = document.getElementById('s3b-title');
+  const s3bS = document.getElementById('s3b-sub');
+  const s3bB = document.getElementById('s3b-back');
+  if (s3bT && L.s3.moodTitle) s3bT.textContent = L.s3.moodTitle;
+  if (s3bS && L.s3.moodSub) s3bS.textContent = L.s3.moodSub;
+  if (s3bB) s3bB.textContent = document.getElementById('s3-back').textContent;
   document.getElementById('s3-mood-label').textContent = L.s3.moodLabel;
   { const _el = document.getElementById('s3-effect-label'); if (_el) _el.textContent = L.s3.effectLabel; }
   document.getElementById('s3-opacity').textContent = L.s3.opacity;
@@ -2109,7 +2231,7 @@ function setLang(l) {
   renderLibrary();
   renderFilters();
   renderEffects();
-  if (currentStep === 6) renderDiary();
+  if (currentStep === 7) renderDiary();
   // Update welcome card if visible
   if (typeof applyWelcomeLang === 'function') {
     const wc = document.getElementById('welcomeCard');
@@ -2601,6 +2723,7 @@ async function bakePortraitCrop() {
 }
 
 async function drawPortraitPreview() {
+  try { oppdaterPortrettfelt(); } catch (e) { /* ikke kritisk */ }
   const canvas = document.getElementById('portraitCanvas');
   const size = 600;
   canvas.width = size; canvas.height = size;
@@ -2668,7 +2791,7 @@ async function drawPortraitPreview() {
     dragging = false;
     try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
     await bakePortraitCrop();
-    if (currentStep === 3 && typeof renderMainCanvas === 'function') renderMainCanvas();
+    if ((currentStep === 3 || currentStep === 4) && typeof renderMainCanvas === 'function') renderMainCanvas();
     scheduleSaveWorkingState();
   };
   canvas.addEventListener('pointerup', end);
@@ -2682,6 +2805,7 @@ document.getElementById('portraitUpload').addEventListener('change', async (e) =
     const dataUrl = await fileToDataUrl(file, 1400);
     state.portraitOriginal = dataUrl;
     state.portraitMask = null;   // et nytt bilde gjoer den gamle viskingen ugyldig
+    nullstillStemning();         // og et nytt bilde skal ikke arve forrige stemning
     state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     // Ask the user how to use the image before doing anything heavy.
@@ -2906,6 +3030,7 @@ async function usePexelsPortrait(fullUrl, photo, btnEl) {
     const dataUrl = await fileToDataUrl(blob, 1400);
     state.portraitOriginal = dataUrl;
     state.portraitMask = null;   // et nytt bilde gjoer den gamle viskingen ugyldig
+    nullstillStemning();         // og et nytt bilde skal ikke arve forrige stemning
     state.portraitPan = { x: 0.5, y: 0.5 };
     saveWorkingState();
     setPexelsStatus('');
@@ -3816,7 +3941,7 @@ async function saveAndContinue() {
   }
   updateDiaryShortcut();
   clearWorkingState();
-  gotoStep(6);
+  gotoStep(7);
  } catch (err) {
   console.error('Lagring til dagbok feilet:', err);
   alert('Kunne ikke lagre i dagbok: ' + (err && err.message ? err.message : 'ukjent feil') + '. Prøv igjen — hvis det fortsetter, last siden på nytt.');
@@ -4780,13 +4905,13 @@ const TOUR_TARGETS = [
   { target: 'bgUploadZone',        appStep: 1 },  // 1: upload background
   { target: 'bgLibrary',           appStep: 1 },  // 2: library
   { target: 'portraitUploadZone',  appStep: 2 },  // 3: upload portrait
-  { target: 'filterGrid',          appStep: 3 },  // 4: filters
-  { target: 'mainCanvasWrap',      appStep: 3 },  // 5: adjust + drag
-  { target: 'textInput',           appStep: 4 },  // 6: text
-  { target: 'sigInput',            appStep: 5 },  // 7: signature
-  { target: 'diaryGrid',           appStep: 6 },  // 8: diary
-  { target: null,                  appStep: 6 },  // 9: download sizes (centered)
-  { target: null,                  appStep: 6 }   // 10: contest (centered)
+  { target: 'mainCanvasWrap',      appStep: 3 },  // 4: adjust + drag
+  { target: 'filterGrid',          appStep: 4 },  // 5: filters
+  { target: 'textInput',           appStep: 5 },  // 6: text
+  { target: 'sigInput',            appStep: 6 },  // 7: signature
+  { target: 'diaryGrid',           appStep: 7 },  // 8: diary
+  { target: null,                  appStep: 7 },  // 9: download sizes (centered)
+  { target: null,                  appStep: 7 }   // 10: contest (centered)
 ];
 
 function showWelcomeIfNeeded() {
@@ -6098,6 +6223,10 @@ init();
     kropp.appendChild(hint);
 
     panel.appendChild(topp); panel.appendChild(kropp);
+    /* Panelet staar ikke lenger framme i dagboken — det hentes fram fra
+       menyen oeverst. Det er fortsatt her, bare skjult, saa alt som peker
+       paa det virker som foer. */
+    panel.style.display = 'none';
     rute.parentNode.insertBefore(panel, rute);
 
     /* De to opprinnelige knappene gjorde nøyaktig det samme. To sett var
@@ -6148,24 +6277,13 @@ init();
       document.getElementById('sk-panel-kropp').style.display === 'none' ? t('vis') : t('skjul');
   }
 
-  /* ── Eget valg i toppen ────────────────────────────────────────────── */
+  /* ── Ikke lenger i toppen ──────────────────────────────────────────── */
+  /* Knappen sto paa hver eneste skjerm og tok plass fra arbeidet. Selve
+     panelet staar uroert oeverst i Dagboken, der de lagrede maleriene er.
+     Her fjernes bare snarveien i toppen, aldri sikkerhetskopien selv. */
   function genvei(){
-    var tur = document.getElementById('tourBtn');
-    if (!tur || !tur.parentNode || document.getElementById('sk-genvei')) return;
-    var b = document.createElement('button');
-    b.type = 'button'; b.id = 'sk-genvei'; b.className = tur.className;
-    var sp = document.createElement('span'); sp.id = 'sk-genvei-tekst';
-    b.appendChild(sp);
-    b.style.marginLeft = '6px';
-    b.onclick = function(){
-      try { if (typeof gotoStep === 'function') gotoStep(6); } catch(e){}
-      try { if (typeof gotoStep === 'function' && !document.getElementById('sk-panel')) gotoStep(7); } catch(e){}
-      settAapen(true);
-      var p = document.getElementById('sk-panel');
-      if (p && p.scrollIntoView) setTimeout(function(){ p.scrollIntoView({behavior:'smooth', block:'center'}); }, 120);
-    };
-    tur.parentNode.insertBefore(b, tur.nextSibling);
-    tekstUt();
+    var b = document.getElementById('sk-genvei');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
   }
 
   /* ── Flere filer paa én gang ───────────────────────────────────────── */
@@ -7017,6 +7135,7 @@ init();
   var maal = null;              /* 'portrett' i steg 2, 'komposisjon' i steg 3 */
   var pensel = 60, styrke = 1, mykhet = 0.5;
   var basis = null;             /* portrettet, avkodet */
+  var basisVis = null;          /* portrettet med effekt paa, bare til visning */
   var kilde = null;             /* bildet masken hoerer til */
   var maske = null, mc = null;  /* arbeidsmasken, portrettets egen stoerrelse */
   var buf = null, bufc = null, grunn = null;
@@ -7025,6 +7144,7 @@ init();
   var bakSnap = null;           /* bakgrunnen, tegnet én gang per strok */
   var temp = null, tempc = null;
   var ramme = 0;
+  var penselValgt = false;   /* har brukeren selv rort penselstoerrelsen? */
 
   function bilde(url){
     return new Promise(function(ok, nei){
@@ -7053,6 +7173,16 @@ init();
     } else {
       mc.fillStyle = '#fff'; mc.fillRect(0, 0, w, h);
     }
+    /* Har portrettet en effekt paa seg, regnes den ut én gang her. Ellers
+       ville bildet hoppe tilbake til ubehandlet hver gang man drar, og
+       tilbake igjen naar man slipper. */
+    basisVis = null;
+    try {
+      if (typeof portraitDrawable === 'function' && state.effect && state.effect !== 'none'){
+        var d = portraitDrawable(basis, state.effect, null);
+        if (d && d !== basis) basisVis = d;
+      }
+    } catch(e){ basisVis = null; }
     temp = document.createElement('canvas');
     temp.width = w; temp.height = h;
     tempc = temp.getContext('2d');
@@ -7064,7 +7194,7 @@ init();
   function maskert(){
     if (!temp || !basis) return null;
     tempc.clearRect(0, 0, temp.width, temp.height);
-    tempc.drawImage(basis, 0, 0);
+    tempc.drawImage(basisVis || basis, 0, 0);
     tempc.globalCompositeOperation = 'destination-in';
     tempc.drawImage(maske, 0, 0, temp.width, temp.height);
     tempc.globalCompositeOperation = 'source-over';
@@ -7132,11 +7262,15 @@ init();
     var r = c.getBoundingClientRect();
     var cx = (e.clientX - r.left) / r.width  * c.width;
     var cy = (e.clientY - r.top)  / r.height * c.height;
+    /* skjerm er hvor mange av lerretets punkter det gaar paa ett
+       skjermpunkt. Penselen maales i skjermpunkter, saa ringen du ser er
+       akkurat saa stor som tallet sier — uansett hvor stort vinduet er. */
+    var skjerm = c.width / r.width;
     if (maal === 'portrett'){
       var S = c.width;
       var k = Math.min(S / basis.width, S / basis.height);
       var w = basis.width * k, h = basis.height * k;
-      return { x:(cx - (S-w)/2) / k, y:(cy - (S-h)/2) / k, k:k };
+      return { x:(cx - (S-w)/2) / k, y:(cy - (S-h)/2) / k, k:k, skjerm:skjerm };
     }
     var SIZE = c.width;
     var dw = SIZE * (state.scale || 1);
@@ -7144,7 +7278,7 @@ init();
     var dh = basis.height * kk;
     var pcx = SIZE * ((state.portraitPos && state.portraitPos.x != null) ? state.portraitPos.x : 0.5);
     var pcy = SIZE * ((state.portraitPos && state.portraitPos.y != null) ? state.portraitPos.y : 0.55);
-    return { x:(cx - (pcx - dw/2)) / kk, y:(cy - (pcy - dh/2)) / kk, k:kk };
+    return { x:(cx - (pcx - dw/2)) / kk, y:(cy - (pcy - dh/2)) / kk, k:kk, skjerm:skjerm };
   }
 
   /* ── tegning mens man drar ────────────────────────────────────────── */
@@ -7226,7 +7360,7 @@ init();
   function tegnOpp(){
     try { if (typeof drawPortraitPreview === 'function' && maal === 'portrett') drawPortraitPreview(); } catch(e){}
     try { if (typeof renderMainCanvas === 'function') renderMainCanvas(); } catch(e){}
-    try { if (typeof renderTextCanvas === 'function' && typeof currentStep !== 'undefined' && currentStep >= 4) renderTextCanvas(); } catch(e){}
+    try { if (typeof renderTextCanvas === 'function' && typeof currentStep !== 'undefined' && currentStep >= 5) renderTextCanvas(); } catch(e){}
   }
 
   async function angre(){
@@ -7274,7 +7408,7 @@ init();
     startStrok();
     var p = punkt(e);
     forrigePkt = p;
-    strok(null, p, pensel / p.k);
+    strok(null, p, pensel * p.skjerm / p.k);
     planlegg();
     flyttRing(e);
   }
@@ -7284,7 +7418,7 @@ init();
     e.stopImmediatePropagation();
     e.preventDefault();
     var p = punkt(e);
-    strok(forrigePkt, p, pensel / p.k);
+    strok(forrigePkt, p, pensel * p.skjerm / p.k);
     forrigePkt = p;
     planlegg();
   }
@@ -7311,8 +7445,7 @@ init();
   function ringMaal(){
     var c = lerretFor();
     if (!c) return null;
-    var r = c.getBoundingClientRect();
-    return 2 * pensel * (r.width / c.width);
+    return 2 * pensel;   /* penselen er allerede maalt i skjermpunkter */
   }
   function flyttRing(e){
     if (!paa) return;
@@ -7345,7 +7478,7 @@ init();
       '<div class="kbo-v-rad" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;"></div>' +
       '<p class="kbo-v-hjelp" style="margin:12px 0 0;text-align:center;font:12.5px ' + F + ';color:#8a857b;line-height:1.5;"></p>';
     var skyv = p.querySelector('.kbo-v-skyv');
-    skyv.appendChild(skyver('storrelse', 8, 160, pensel, function(v){ pensel = v; visRingMidt(); }, null));
+    skyv.appendChild(skyver('storrelse', 8, 160, pensel, function(v){ pensel = v; penselValgt = true; visRingMidt(); }, null));
     skyv.appendChild(skyver('styrke', 5, 100, Math.round(styrke*100), function(v){ styrke = Math.max(0.05, v/100); }, '%'));
     skyv.appendChild(skyver('mykhet', 0, 100, Math.round(mykhet*100), function(v){ mykhet = v/100; }, '%'));
     var rad = p.querySelector('.kbo-v-rad');
@@ -7354,6 +7487,15 @@ init();
     rad.appendChild(knapp(t('ferdig'), true, function(){ slaaAv(); }, 'kbo-v-ferdig'));
     p.querySelector('.kbo-v-hjelp').textContent = t('hjelp');
     return p;
+  }
+
+  var storrelsesSkyvere = [];
+  function settPensel(v){
+    pensel = v;
+    storrelsesSkyvere.forEach(function(s){
+      s.value = v;
+      s.dispatchEvent(new Event('input'));
+    });
   }
 
   function skyver(nokkel, min, maks, verdi, ved, enhet){
@@ -7374,6 +7516,7 @@ init();
     s.addEventListener('input', function(){ ved(parseInt(s.value, 10)); vis(); });
     vis();
     boks.appendChild(merke); boks.appendChild(s);
+    if (nokkel === 'storrelse') storrelsesSkyvere.push(s);
     return boks;
   }
 
@@ -7437,6 +7580,13 @@ init();
     if (c){
       c.style.cursor = 'crosshair';
       c.style.touchAction = 'none';
+      /* Foerste gang settes penselen etter hvor stort bildet vises. 60 er
+         passe paa en Mac, men en tredjedel av bildet paa en telefon. Etter
+         at du har rort skyveknappen selv, roeres den aldri igjen. */
+      if (!penselValgt){
+        var bredde = c.getBoundingClientRect().width || 600;
+        settPensel(Math.max(12, Math.min(60, Math.round(bredde * 0.085))));
+      }
     }
     oppdaterPanel();
     visRingMidt();
@@ -7447,7 +7597,7 @@ init();
     var c2 = document.getElementById('portraitCanvas');
     var c3 = document.getElementById('mainCanvas');
     [c2, c3].forEach(function(c){ if (c){ c.style.cursor = ''; } });
-    maske = null; mc = null; basis = null; kilde = null; temp = null; tempc = null;
+    maske = null; mc = null; basis = null; basisVis = null; kilde = null; temp = null; tempc = null;
     buf = null; bufc = null; grunn = null; bakSnap = null;
     skjulRing();
     oppdaterPanel();
@@ -7661,6 +7811,8 @@ init();
     state.portraitPan = { x: 0.5, y: 0.5 };
     try { if (typeof _portraitImgCache === 'object' && _portraitImgCache) _portraitImgCache.src = null; } catch(e){}
     try { if (typeof window.kboViskAv === 'function') window.kboViskAv(); } catch(e){}
+    try { if (typeof nullstillStemning === 'function') nullstillStemning(); } catch(e){}
+    try { if (typeof oppdaterPortrettfelt === 'function') oppdaterPortrettfelt(); } catch(e){}
     var pv = document.getElementById('portraitPreview');
     if (pv) pv.classList.add('hidden');
     var n = document.getElementById('s2-next');
@@ -7678,7 +7830,10 @@ init();
   function boks(){
     var b = document.getElementById('kbo-pbib');
     if (b) return b;
-    var etter = document.querySelector('#step-2 .pexels-box');
+    /* Rett under resultatvinduet. Da staar bildene du har brukt der du
+       ser etter dem, og ikke nedenfor soekefeltet. */
+    var etter = document.getElementById('portraitPreview')
+             || document.querySelector('#step-2 .pexels-box');
     if (!etter) return null;
     b = document.createElement('div');
     b.id = 'kbo-pbib';
@@ -7785,6 +7940,392 @@ init();
   }, 250);
 
   les();
+})();
+
+</script>
+
+<script>
+/* ═══════════ MENY ØVERST ═══════════
+   Foer laa spraakvalget, Omvisning og Sikkerhetskopi som knapper paa hver
+   eneste skjerm. Paa iPhone gikk over halve hoeyden med foer maleriet i det
+   hele tatt begynte.
+
+   Naa ligger de i én meny ved logoen. Ingenting er slettet: menyvalgene
+   trykker paa de opprinnelige knappene, som bare er skjult. Da virker
+   omvisningen, spraakbyttet og sikkerhetskopien akkurat som foer.
+
+   FAQ og Innstillinger er med vilje ikke lagt inn: Light har ingen av
+   delene ennaa, og en menylinje som ikke foerer noe sted er verre enn
+   ingen linje. */
+(function(){
+  'use strict';
+
+  var F = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+  var NAVN = { no:'Norsk', sv:'Svenska', da:'Dansk', en:'English' };
+  var FLAGG = { no:'🇳🇴', sv:'🇸🇪', da:'🇩🇰', en:'🇬🇧' };
+
+  var T = {
+    no: { spraak:'Språk', omvisning:'Omvisning', kopi:'Sikkerhetskopi',
+          kontakt:'Kontakt Kristin', meny:'Meny' },
+    sv: { spraak:'Språk', omvisning:'Rundtur', kopi:'Säkerhetskopia',
+          kontakt:'Kontakta Kristin', meny:'Meny' },
+    da: { spraak:'Sprog', omvisning:'Rundvisning', kopi:'Sikkerhedskopi',
+          kontakt:'Kontakt Kristin', meny:'Menu' },
+    en: { spraak:'Language', omvisning:'Tour', kopi:'Backup',
+          kontakt:'Contact Kristin', meny:'Menu' }
+  };
+  function t(k){
+    var l = 'no';
+    try { if (typeof lang === 'string' && T[lang]) l = lang; } catch(e){}
+    return T[l][k];
+  }
+  function naa(){
+    try { if (typeof lang === 'string' && NAVN[lang]) return lang; } catch(e){}
+    return 'no';
+  }
+
+  var knapp = null, meny = null, raden = null;
+
+  function lukk(){
+    if (meny) meny.style.display = 'none';
+    if (knapp) knapp.setAttribute('aria-expanded', 'false');
+  }
+
+  function linje(ikon, tekst, ved){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.style.cssText = 'display:flex;align-items:center;gap:9px;width:100%;text-align:left;' +
+      'padding:11px 14px;border:none;background:transparent;font:400 14px ' + F + ';' +
+      'color:#1a1a1a;cursor:pointer;';
+    b.onmouseenter = function(){ b.style.background = '#f7f3ea'; };
+    b.onmouseleave = function(){ b.style.background = 'transparent'; };
+    var i = document.createElement('span'); i.textContent = ikon;
+    var s = document.createElement('span'); s.textContent = tekst;
+    b.appendChild(i); b.appendChild(s);
+    b.onclick = function(){ lukk(); ved(); };
+    return b;
+  }
+
+  function trykkEkte(velger){
+    var e = document.querySelector(velger);
+    if (e) { e.click(); return true; }
+    return false;
+  }
+
+  function tegnMeny(){
+    if (!meny) return;
+    meny.innerHTML = '';
+
+    var tit = document.createElement('div');
+    tit.textContent = t('spraak').toUpperCase();
+    tit.style.cssText = 'padding:11px 14px 5px;font:600 10px ' + F + ';color:#a09a90;' +
+      'letter-spacing:0.08em;';
+    meny.appendChild(tit);
+
+    var rad = document.createElement('div');
+    rad.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;padding:0 14px 11px;';
+    Object.keys(NAVN).forEach(function(k){
+      var b = document.createElement('button');
+      b.type = 'button'; b.textContent = FLAGG[k] + ' ' + NAVN[k];
+      var valgt = (k === naa());
+      b.style.cssText = 'padding:5px 10px;border-radius:7px;cursor:pointer;font:' +
+        (valgt ? '600' : '400') + ' 12px ' + F + ';' +
+        (valgt ? 'background:#1a1a1a;color:#fff;border:1px solid #1a1a1a;'
+               : 'background:#fff;color:#6f6a61;border:1px solid #ded7c9;');
+      b.onclick = function(){
+        lukk();
+        if (!trykkEkte('.lang-row button[onclick*="\'' + k + '\'"]')){
+          if (typeof window.setLang === 'function') window.setLang(k);
+        }
+        setTimeout(tegnAlt, 40);
+      };
+      rad.appendChild(b);
+    });
+    meny.appendChild(rad);
+
+    var strek = document.createElement('div');
+    strek.style.cssText = 'height:1px;background:#ede7dc;margin:0 0 4px;';
+    meny.appendChild(strek);
+
+    meny.appendChild(linje('💡', t('omvisning'), function(){
+      if (!trykkEkte('#tourBtn') && typeof window.restartTour === 'function') window.restartTour();
+    }));
+
+    meny.appendChild(linje('💾', t('kopi'), function(){
+      try { if (typeof gotoStep === 'function') gotoStep(7); } catch(e){}
+      setTimeout(function(){
+        var p = document.getElementById('sk-panel');
+        if (!p) return;
+        p.style.display = '';          /* det ligger skjult til det hentes hit */
+        var kropp = document.getElementById('sk-panel-kropp');
+        if (kropp && kropp.style.display === 'none'){
+          var topp = document.getElementById('sk-panel-topp');
+          if (topp) topp.click();
+        }
+        if (p.scrollIntoView) p.scrollIntoView({ behavior:'smooth', block:'center' });
+      }, 260);
+    }));
+
+    var kontakt = document.getElementById('kbo-tbm-lenke');
+    if (kontakt && kontakt.href){
+      meny.appendChild(linje('✉️', t('kontakt'), function(){
+        window.open(kontakt.href, '_blank', 'noopener');
+      }));
+    }
+  }
+
+  function tegnKnapp(){
+    if (!knapp) return;
+    knapp.innerHTML = '';
+    var i = document.createElement('span');
+    i.textContent = '☰';
+    i.style.cssText = 'font-size:15px;line-height:1;';
+    /* Flagget viser hvilket spraak som staar paa, uten aa aapne menyen. */
+    var fl = document.createElement('span');
+    fl.textContent = FLAGG[naa()];
+    fl.style.cssText = 'font-size:15px;line-height:1;';
+    knapp.appendChild(i); knapp.appendChild(fl);
+    knapp.setAttribute('aria-label', t('meny') + ' — ' + NAVN[naa()]);
+  }
+  function tegnAlt(){ tegnKnapp(); tegnMeny(); }
+
+  function bygg(){
+    if (document.getElementById('kbo-meny-knapp')) return true;
+    var topp = document.querySelector('.cba-header');
+    raden = document.querySelector('.lang-row');
+    if (!topp || !raden) return false;
+
+    /* Hele raden skjules — innholdet finnes fortsatt, bare i menyen. */
+    raden.style.display = 'none';
+
+    topp.style.alignItems = 'center';
+
+    var hylle = document.createElement('div');
+    hylle.style.cssText = 'margin-left:auto;position:relative;flex:0 0 auto;';
+
+    knapp = document.createElement('button');
+    knapp.type = 'button'; knapp.id = 'kbo-meny-knapp';
+    knapp.setAttribute('aria-haspopup', 'true');
+    knapp.setAttribute('aria-expanded', 'false');
+    knapp.style.cssText = 'display:flex;align-items:center;gap:6px;padding:8px 12px;' +
+      'border:1px solid #d8cfb8;border-radius:9px;background:#fff;color:#1a1a1a;cursor:pointer;';
+
+    meny = document.createElement('div');
+    meny.id = 'kbo-meny';
+    meny.style.cssText = 'display:none;position:absolute;top:calc(100% + 6px);right:0;' +
+      'min-width:210px;background:#fff;border:1px solid #ded7c9;border-radius:11px;' +
+      'box-shadow:0 10px 28px rgba(0,0,0,0.13);overflow:hidden;z-index:9000;padding-bottom:5px;';
+
+    knapp.onclick = function(e){
+      e.stopPropagation();
+      var apen = meny.style.display === 'block';
+      meny.style.display = apen ? 'none' : 'block';
+      knapp.setAttribute('aria-expanded', apen ? 'false' : 'true');
+    };
+    document.addEventListener('click', function(e){
+      if (meny && meny.style.display === 'block' && !hylle.contains(e.target)) lukk();
+    });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') lukk(); });
+
+    hylle.appendChild(knapp); hylle.appendChild(meny);
+    topp.appendChild(hylle);
+    tegnAlt();
+    return true;
+  }
+
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._kboMeny) return;
+    var o = window.setLang;
+    var n = function(){
+      var s = o.apply(this, arguments);
+      try { tegnAlt(); } catch(e){}
+      return s;
+    };
+    n._kboMeny = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    var ok = bygg();
+    foelgSpraak();
+    if (ok && document.getElementById('kbo-tbm-lenke')) tegnMeny();
+    if ((ok && document.getElementById('kbo-tbm-lenke')) || forsok > 80) clearInterval(venter);
+  }, 200);
+})();
+
+</script>
+
+<script>
+/* ═══════════ PÅMINNELSE OM SIKKERHETSKOPI ═══════════
+   Panelet sto foer aapent i dagboken til man hadde tatt sin foerste kopi.
+   Det var en dytt, og den forsvant da panelet ble flyttet inn i menyen.
+
+   Denne erstatter dytten uten aa ta plass hver dag: en linje oeverst i
+   dagboken, og en liten prikk paa menyknappen, men bare naar det faktisk
+   er lenge siden — eller aldri. Trykker du «Ikke nå», er den borte i en uke.
+
+   Den teller bare naar det finnes noe aa miste. Er dagboken tom, sier den
+   ingenting. */
+(function(){
+  'use strict';
+
+  var SIST   = 'fotomaleri-sist-sikkerhetskopi';   /* samme noekkel som panelet */
+  var UTSATT = 'fotomaleri-paminnelse-utsatt';
+  var GRENSE = 21;    /* dager */
+  var UTSETT = 7;     /* dager */
+  var F = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+  var T = {
+    no: { aldri:'Du har ikke tatt sikkerhetskopi ennå. Maleriene dine finnes bare i denne nettleseren.',
+          lenge:'Det er {d} dager siden forrige sikkerhetskopi.',
+          ta:'Ta sikkerhetskopi', vent:'Ikke nå' },
+    sv: { aldri:'Du har inte tagit någon säkerhetskopia ännu. Dina målningar finns bara i den här webbläsaren.',
+          lenge:'Det var {d} dagar sedan förra säkerhetskopian.',
+          ta:'Ta säkerhetskopia', vent:'Inte nu' },
+    da: { aldri:'Du har ikke taget sikkerhedskopi endnu. Dine malerier findes kun i denne browser.',
+          lenge:'Der er gået {d} dage siden sidste sikkerhedskopi.',
+          ta:'Tag sikkerhedskopi', vent:'Ikke nu' },
+    en: { aldri:'You have not made a backup yet. Your paintings live only in this browser.',
+          lenge:'It has been {d} days since your last backup.',
+          ta:'Make a backup', vent:'Not now' }
+  };
+  function t(k){
+    var l = 'no';
+    try { if (typeof lang === 'string' && T[lang]) l = lang; } catch(e){}
+    return T[l][k];
+  }
+
+  function les(n){ try { return localStorage.getItem(n); } catch(e){ return null; } }
+  function skriv(n, v){ try { localStorage.setItem(n, v); } catch(e){} }
+
+  function idag(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  }
+  function dagerSiden(dato){
+    if (!dato) return null;
+    var d = new Date(dato + 'T12:00:00');
+    if (isNaN(d)) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  }
+
+  var harArbeid = false;
+  async function sjekkArbeid(){
+    try {
+      var rader = await dbAll('diary');
+      harArbeid = !!(rader && rader.length);
+    } catch(e){ harArbeid = false; }
+  }
+
+  /* null = ingenting aa si, ellers teksten som skal staa */
+  function beskjed(){
+    if (!harArbeid) return null;
+    var utsatt = dagerSiden(les(UTSATT));
+    if (utsatt !== null && utsatt < UTSETT) return null;
+    var sist = les(SIST);
+    if (!sist) return t('aldri');
+    var d = dagerSiden(sist);
+    if (d === null || d < GRENSE) return null;
+    return t('lenge').replace('{d}', d);
+  }
+
+  function taKopi(){
+    var k = document.getElementById('kbo-meny-knapp');
+    if (k) k.click();
+    var v = [].slice.call(document.querySelectorAll('#kbo-meny button'))
+      .filter(function(b){ return /💾/.test(b.textContent); })[0];
+    if (v) v.click();
+    else if (typeof window.sikkerhetskopiLastNed === 'function') window.sikkerhetskopiLastNed();
+  }
+
+  function tegn(){
+    var steg = document.getElementById('step-7');
+    if (!steg) return;
+    var tekst = beskjed();
+    var boks = document.getElementById('kbo-paminn');
+    var prikk = document.getElementById('kbo-paminn-prikk');
+    var knapp = document.getElementById('kbo-meny-knapp');
+
+    if (!tekst){
+      if (boks && boks.parentNode) boks.parentNode.removeChild(boks);
+      if (prikk && prikk.parentNode) prikk.parentNode.removeChild(prikk);
+      return;
+    }
+
+    /* Prikken paa menyknappen, saa den ses fra alle trinn. */
+    if (knapp && !prikk){
+      knapp.style.position = 'relative';
+      prikk = document.createElement('span');
+      prikk.id = 'kbo-paminn-prikk';
+      prikk.style.cssText = 'position:absolute;top:-4px;right:-4px;width:10px;height:10px;' +
+        'border-radius:50%;background:#c4944a;border:2px solid #fff;';
+      knapp.appendChild(prikk);
+    }
+
+    if (!boks){
+      boks = document.createElement('div');
+      boks.id = 'kbo-paminn';
+      boks.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;' +
+        'margin:0 0 1rem;padding:12px 14px;border:1px solid #e6d9bd;border-radius:11px;' +
+        'background:#fdf8ee;font:13.5px ' + F + ';color:#6f6a61;line-height:1.5;';
+      var i = document.createElement('span');
+      i.textContent = '💾'; i.style.cssText = 'font-size:16px;';
+      var p = document.createElement('span');
+      p.id = 'kbo-paminn-tekst'; p.style.cssText = 'flex:1;min-width:180px;';
+      var a = document.createElement('button');
+      a.type = 'button'; a.id = 'kbo-paminn-ta';
+      a.style.cssText = 'padding:8px 14px;border-radius:9px;border:none;background:#1a1a1a;' +
+        'color:#f5f5f3;font:600 13px ' + F + ';cursor:pointer;';
+      a.onclick = taKopi;
+      var v = document.createElement('button');
+      v.type = 'button'; v.id = 'kbo-paminn-vent';
+      v.style.cssText = 'padding:8px 12px;border-radius:9px;border:1px solid #ded7c9;' +
+        'background:#fff;color:#6f6a61;font:13px ' + F + ';cursor:pointer;';
+      v.onclick = function(){ skriv(UTSATT, idag()); tegn(); };
+      boks.appendChild(i); boks.appendChild(p); boks.appendChild(a); boks.appendChild(v);
+      steg.insertBefore(boks, steg.querySelector('.nav-row') || steg.firstChild);
+    }
+    document.getElementById('kbo-paminn-tekst').textContent = tekst;
+    document.getElementById('kbo-paminn-ta').textContent = t('ta');
+    document.getElementById('kbo-paminn-vent').textContent = t('vent');
+  }
+
+  async function oppdater(){ await sjekkArbeid(); tegn(); }
+
+  /* Kommer man inn i dagboken, sjekkes det paa nytt med det samme — ellers
+     ville linja henge etter med opptil et halvt minutt. */
+  function foelgSteg(){
+    if (typeof window.gotoStep !== 'function' || window.gotoStep._kboPaminn) return;
+    var o = window.gotoStep;
+    var n = function(k){
+      var s = o.apply(this, arguments);
+      if (k === 7) setTimeout(oppdater, 120);
+      return s;
+    };
+    n._kboPaminn = true; window.gotoStep = n;
+  }
+
+  function foelgSpraak(){
+    if (typeof window.setLang !== 'function' || window.setLang._kboPaminn) return;
+    var o = window.setLang;
+    var n = function(){ var s = o.apply(this, arguments); try { tegn(); } catch(e){} return s; };
+    n._kboPaminn = true; window.setLang = n;
+  }
+
+  var forsok = 0;
+  var venter = setInterval(function(){
+    forsok++;
+    foelgSpraak(); foelgSteg();
+    if (document.getElementById('step-7') && typeof dbAll === 'function'){
+      clearInterval(venter);
+      oppdater();
+      /* Tar man kopien, skal linja forsvinne uten at man maa laste paa nytt. */
+      setInterval(oppdater, 8000);
+    }
+    if (forsok > 80) clearInterval(venter);
+  }, 250);
 })();
 
 </script>
