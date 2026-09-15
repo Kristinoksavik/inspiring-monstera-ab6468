@@ -7226,6 +7226,17 @@ init();
     ctx.globalCompositeOperation = 'source-over';
   }
 
+  /* Penselen maales mot portrettet selv, ikke mot skjermen. Tallet 39
+     betyr da like mye av maleriet enten vinduet er stort eller lite, og
+     enten du visker i portrettsteget eller i komposisjonen. Foer var den
+     maalt i skjermpunkter, og da spiste den mer av bildet hver gang
+     arbeidsomraadet ble mindre. 600 er bare en malestokk: en pensel paa
+     39 er 39/600 av portrettets bredde i radius. */
+  function penselIBildet(){
+    if (!basis) return pensel;
+    return pensel * (basis.width / 600);
+  }
+
   function startStrok(){
     buf = document.createElement('canvas');
     buf.width = maske.width; buf.height = maske.height;
@@ -7263,8 +7274,7 @@ init();
     var cx = (e.clientX - r.left) / r.width  * c.width;
     var cy = (e.clientY - r.top)  / r.height * c.height;
     /* skjerm er hvor mange av lerretets punkter det gaar paa ett
-       skjermpunkt. Penselen maales i skjermpunkter, saa ringen du ser er
-       akkurat saa stor som tallet sier — uansett hvor stort vinduet er. */
+       skjermpunkt. Trengs for aa regne ut hvor stor ringen skal tegnes. */
     var skjerm = c.width / r.width;
     if (maal === 'portrett'){
       var S = c.width;
@@ -7408,7 +7418,7 @@ init();
     startStrok();
     var p = punkt(e);
     forrigePkt = p;
-    strok(null, p, pensel * p.skjerm / p.k);
+    strok(null, p, penselIBildet());
     planlegg();
     flyttRing(e);
   }
@@ -7418,7 +7428,7 @@ init();
     e.stopImmediatePropagation();
     e.preventDefault();
     var p = punkt(e);
-    strok(forrigePkt, p, pensel * p.skjerm / p.k);
+    strok(forrigePkt, p, penselIBildet());
     forrigePkt = p;
     planlegg();
   }
@@ -7442,10 +7452,21 @@ init();
     document.body.appendChild(ring);
     return ring;
   }
+  /* Hvor stor penselen er paa skjermen akkurat naa: fra bildepunkter,
+     gjennom lerretet, ut til skjermen. */
   function ringMaal(){
     var c = lerretFor();
-    if (!c) return null;
-    return 2 * pensel;   /* penselen er allerede maalt i skjermpunkter */
+    if (!c || !basis) return 2 * pensel;
+    var r = c.getBoundingClientRect();
+    if (!r.width) return 2 * pensel;
+    var k;   /* lerretspunkter per bildepunkt */
+    if (maal === 'portrett'){
+      k = Math.min(c.width / basis.width, c.width / basis.height);
+    } else {
+      k = (c.width * (state.scale || 1)) / basis.width;
+    }
+    var skjerm = c.width / r.width;
+    return 2 * penselIBildet() * k / skjerm;
   }
   function flyttRing(e){
     if (!paa) return;
@@ -7583,10 +7604,10 @@ init();
       /* Foerste gang settes penselen etter hvor stort bildet vises. 60 er
          passe paa en Mac, men en tredjedel av bildet paa en telefon. Etter
          at du har rort skyveknappen selv, roeres den aldri igjen. */
-      if (!penselValgt){
-        var bredde = c.getBoundingClientRect().width || 600;
-        settPensel(Math.max(12, Math.min(60, Math.round(bredde * 0.085))));
-      }
+      /* Foerstegangsverdien er nå uavhengig av skjermen, siden penselen
+         maales mot bildet. 40 gir en pensel paa cirka 13 % av portrettets
+         bredde — stor nok til aa jobbe med, liten nok til kanter. */
+      if (!penselValgt) settPensel(40);
     }
     oppdaterPanel();
     visRingMidt();
