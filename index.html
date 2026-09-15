@@ -1602,7 +1602,10 @@ const state = {
   portraitKept: false,              // true når bildet beholdes helt (beskjæres kvadratisk)
   text: '',
   textFont: 'Georgia, serif',
-  textColor: '#ffffff',
+  /* 15. sept: var hvit. Et medlem trodde teksten ikke kom inn i det
+     hele tatt — den laa der, hvit paa en lys bakgrunn. Svart leses paa de
+     fleste bakgrunner, og glorien under tar resten. */
+  textColor: '#000000',
   textSize: 32,
   textPos: { x: 0.5, y: 0.88 }, // normalized
   textOpacity: 1.0,
@@ -2068,6 +2071,9 @@ function newComposition() {
   state.bgBlur = 0;
   state.textOpacity = 1.0;
   state.textRotation = 0;
+  /* Fargen fulgte foer med fra forrige maleri. Den som allerede hadde
+     hvit tekst lagret, ville beholde den i det uendelige. */
+  state.textColor = '#000000';
   state.portraitPos = { x: 0.5, y: 0.55 };
   state.textPos = { x: 0.5, y: 0.88 };
   document.getElementById('opacitySlider').value = 100;
@@ -3505,6 +3511,21 @@ async function renderTextCanvas() {
   }
 }
 
+/* Lysstyrken i en farge, 0 er svart og 1 er hvitt. Brukes til aa velge
+   glorie: lys tekst faar moerk glorie, moerk tekst faar lys. */
+function fargeLysstyrke(hex) {
+  if (typeof hex !== 'string') return 1;
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return 1;
+  const r = parseInt(h.slice(0, 2), 16) / 255;
+  const g = parseInt(h.slice(2, 4), 16) / 255;
+  const b = parseInt(h.slice(4, 6), 16) / 255;
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+function kontrastTil(hex) {
+  return fargeLysstyrke(hex) > 0.5 ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)';
+}
+
 function drawText(ctx, text, SIZE) {
   const fontSize = Math.round(state.textSize * SIZE / 360); // scale relative to canvas
   const cx = SIZE * state.textPos.x;
@@ -3518,21 +3539,50 @@ function drawText(ctx, text, SIZE) {
   ctx.fillStyle = state.textColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // soft shadow for legibility
-  const isLight = state.textColor === '#ffffff' || state.textColor.toLowerCase() === '#ffffff';
-  ctx.shadowColor = isLight ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.35)';
-  ctx.shadowBlur = fontSize * 0.15;
-  ctx.shadowOffsetY = fontSize * 0.05;
 
   const lines = text.split('\n');
   const lineH = fontSize * 1.2;
   const totalH = lines.length * lineH;
-  lines.forEach((line, i) => {
-    const y = -totalH / 2 + lineH * (i + 0.5);
-    ctx.fillText(line, 0, y);
+  const skriv = () => lines.forEach((line, i) => {
+    ctx.fillText(line, 0, -totalH / 2 + lineH * (i + 0.5));
   });
+
+  /* Glorien. Foer laa det en liten skygge her, men den var for svak til
+     aa redde hvit tekst paa en lys bakgrunn — og det var nettopp den
+     kombinasjonen som fikk et medlem til aa tro at teksten ikke kom inn.
+     Naa legges en myk glorie i motsatt lyshet av selve fargen, i to
+     omganger for aa gjoere den tett nok, foer bokstavene tegnes rent
+     oppaa. Da leses enhver farge paa enhver bakgrunn, uten at teksten
+     faar en hard kontur rundt seg. */
+  ctx.shadowColor = kontrastTil(state.textColor);
+  ctx.shadowBlur = fontSize * 0.16;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
+  skriv();
+  skriv();
+
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  skriv();
+
   ctx.restore();
 }
+
+/* Paa telefon ligger tekstfeltet under bildet. Trykker man i feltet,
+   spretter tastaturet opp og dytter siden slik at feltet havner oeverst —
+   og da er bildet skjoevet ut av skjermen. Man skriver, ser ingenting
+   skje, og tror teksten ikke kom inn. Her rulles bildet fram igjen naar
+   tastaturet har lagt seg, saa man ser teksten komme mens man skriver. */
+(function seBildetMensDuSkriver() {
+  const felt = document.getElementById('textInput');
+  if (!felt) return;
+  felt.addEventListener('focus', () => {
+    setTimeout(() => {
+      const w = document.getElementById('textCanvasWrap');
+      if (w && w.scrollIntoView) w.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 450);
+  });
+})();
 
 // Text input handlers
 document.getElementById('textInput').addEventListener('input', (e) => {
