@@ -5296,22 +5296,6 @@ init();
 (function(){
   var PRISLISTE = 'https://markedshjelpen.malestudio.no';
 
-  /* Setter sammen «24 komposisjoner og 24 bakgrunner», slik at tallet
-     alltid staar sammen med hva det er tall paa. */
-  function skOppsummer(per){
-    var NAVN = { diary:'komposisjoner', backgrounds:'bakgrunner', portraits:'portretter' };
-    var ETT  = { diary:'komposisjon',   backgrounds:'bakgrunn',   portraits:'portrett' };
-    var d = [];
-    for (var n in per){
-      var a = per[n];
-      if (!a) continue;
-      d.push(a + ' ' + (a === 1 ? (ETT[n] || n) : (NAVN[n] || n)));
-    }
-    if (!d.length) return 'Ingenting';
-    if (d.length === 1) return d[0];
-    return d.slice(0, -1).join(', ') + ' og ' + d[d.length - 1];
-  }
-
   function melding(tekst, feil){
     var el = document.getElementById('pl-melding');
     if(!el){
@@ -5416,6 +5400,27 @@ init();
 (function(){
   var SIST = 'fotomaleri-sist-sikkerhetskopi';
 
+  /* Setter sammen «24 komposisjoner og 24 bakgrunner», slik at tallet
+     alltid staar sammen med hva det er tall paa.
+
+     26. sept: denne laa inne i en HELT ANNEN script-blokk (send til
+     Markedshjelpen), og var derfor usynlig herfra. Sikkerhetskopien
+     stoppet med «Can't find variable: skOppsummer» for alle som proevde.
+     Den hoerer hjemme her, der den brukes. */
+  function skOppsummer(per){
+    var NAVN = { diary:'komposisjoner', backgrounds:'bakgrunner', portraits:'portretter' };
+    var ETT  = { diary:'komposisjon',   backgrounds:'bakgrunn',   portraits:'portrett' };
+    var d = [];
+    for (var n in per){
+      var a = per[n];
+      if (!a) continue;
+      d.push(a + ' ' + (a === 1 ? (ETT[n] || n) : (NAVN[n] || n)));
+    }
+    if (!d.length) return 'Ingenting';
+    if (d.length === 1) return d[0];
+    return d.slice(0, -1).join(', ') + ' og ' + d[d.length - 1];
+  }
+
   function butikker(){
     /* workingState er arbeid som paagaar, ikke noe man vil ha med i en kopi */
     var b = [['diary','dagbok'], ['backgrounds','bakgrunner']];
@@ -5446,6 +5451,36 @@ init();
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
+  /* Denne linja sto bare paa norsk, midt i et ellers svensk eller dansk
+     panel. Naa foelger den spraaket som er valgt, som alt annet. */
+  var SISTORD = {
+    no: { sist:'Siste sikkerhetskopi:',
+          apple:'Den ligger der du valgte å lagre den — åpne <b>Filer</b> og se etter navnet.',
+          nedlast:'Den ligger der nedlastinger havner.',
+          nyest:'Den nyeste fila er den som gjelder — eldre kopier kan du slette.',
+          ingen:'Du har ikke lagd sikkerhetskopi ennå. Da finnes dagboken bare her, i denne nettleseren.' },
+    sv: { sist:'Senaste säkerhetskopia:',
+          apple:'Den ligger där du valde att spara den — öppna <b>Filer</b> och leta efter namnet.',
+          nedlast:'Den ligger där nedladdningar hamnar.',
+          nyest:'Den nyaste filen är den som gäller — äldre kopior kan du radera.',
+          ingen:'Du har inte gjort någon säkerhetskopia ännu. Då finns dagboken bara här, i den här webbläsaren.' },
+    da: { sist:'Seneste sikkerhedskopi:',
+          apple:'Den ligger der, hvor du valgte at gemme den — åbn <b>Filer</b> og se efter navnet.',
+          nedlast:'Den ligger der, hvor downloads havner.',
+          nyest:'Den nyeste fil er den, der gælder — ældre kopier kan du slette.',
+          ingen:'Du har ikke lavet en sikkerhedskopi endnu. Så findes dagbogen kun her, i denne browser.' },
+    en: { sist:'Last backup:',
+          apple:'It is wherever you chose to save it — open <b>Files</b> and look for the name.',
+          nedlast:'It is where downloads go.',
+          nyest:'The newest file is the one that counts — older copies can be deleted.',
+          ingen:'You have not made a backup yet. Your diary lives only here, in this browser.' }
+  };
+  function sistOrd(n){
+    var l = 'no';
+    try { if (typeof lang === 'string' && SISTORD[lang]) l = lang; } catch(e){}
+    return SISTORD[l][n];
+  }
+
   function visSist(){
     var p = document.getElementById('sk-sist');
     if(!p) return;
@@ -5454,12 +5489,11 @@ init();
     /* Hele filnavnet, ikke bare datoen. Da slipper man aa lete seg fram i
        filoversikten paa telefonen — man vet noeyaktig hva man ser etter. */
     var hvor = (typeof erApple === 'function' && erApple())
-      ? 'Den ligger der du valgte å lagre den — åpne <b>Filer</b> og se etter navnet.'
-      : 'Den ligger der nedlastinger havner.';
+      ? sistOrd('apple') : sistOrd('nedlast');
     p.innerHTML = s
-      ? ('Siste sikkerhetskopi: <b>fotomaleri-sikkerhetskopi-' + s + '.json</b><br>'
-         + hvor + ' Den nyeste fila er den som gjelder — eldre kopier kan du slette.')
-      : 'Du har ikke lagd sikkerhetskopi ennå. Da finnes dagboken bare her, i denne nettleseren.';
+      ? (sistOrd('sist') + ' <b>fotomaleri-sikkerhetskopi-' + s + '.json</b><br>'
+         + hvor + ' ' + sistOrd('nyest'))
+      : sistOrd('ingen');
   }
   window.skVisSist = visSist;
 
