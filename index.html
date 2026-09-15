@@ -3507,7 +3507,7 @@ async function renderTextCanvas() {
 
   // Text on overlay canvas (no filter applied). Opacity is handled by overlay CSS.
   if (state.text && state.text.trim()) {
-    drawText(octx, state.text, SIZE);
+    drawText(octx, state.text, SIZE, ctx);
   }
 }
 
@@ -3526,7 +3526,45 @@ function kontrastTil(hex) {
   return fargeLysstyrke(hex) > 0.5 ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)';
 }
 
-function drawText(ctx, text, SIZE) {
+/* Hvor lyst bildet er akkurat der teksten skal ligge. Maales paa lerretet
+   under, i et baand rundt teksten. Null hvis det ikke lar seg maale. */
+function lysstyrkeUnder(bunnCtx, SIZE, pos, hoyde) {
+  if (!bunnCtx) return null;
+  try {
+    const b = Math.round(SIZE * 0.7);
+    const h = Math.max(10, Math.round(hoyde));
+    let x = Math.round(SIZE * pos.x - b / 2);
+    let y = Math.round(SIZE * pos.y - h / 2);
+    x = Math.max(0, Math.min(x, SIZE - 1));
+    y = Math.max(0, Math.min(y, SIZE - 1));
+    const bb = Math.min(b, SIZE - x);
+    const hh = Math.min(h, SIZE - y);
+    if (bb <= 0 || hh <= 0) return null;
+    const d = bunnCtx.getImageData(x, y, bb, hh).data;
+    let sum = 0, ant = 0;
+    for (let i = 0; i < d.length; i += 16) {      /* hvert fjerde piksel holder */
+      /* Er lerretet tomt ennaa, er det det hvite arbeidsfeltet man ser —
+         ikke svart. Uten dette ville teksten faa glorie i det halve
+         sekundet foer bildet er tegnet ferdig. */
+      const a = d[i + 3] / 255;
+      const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      sum += l * a + (1 - a);
+      ant++;
+    }
+    return ant ? (sum / ant) : null;
+  } catch (e) {
+    return null;   /* faar vi ikke maalt, heller glorie enn usynlig tekst */
+  }
+}
+
+/* Trenger denne fargen hjelp for aa synes paa dette bildet? */
+function trengerGlorie(farge, bunnCtx, SIZE, pos, hoyde) {
+  const under = lysstyrkeUnder(bunnCtx, SIZE, pos, hoyde);
+  if (under === null) return true;
+  return Math.abs(fargeLysstyrke(farge) - under) < 0.25;
+}
+
+function drawText(ctx, text, SIZE, bunnCtx) {
   const fontSize = Math.round(state.textSize * SIZE / 360); // scale relative to canvas
   const cx = SIZE * state.textPos.x;
   const cy = SIZE * state.textPos.y;
@@ -3547,22 +3585,20 @@ function drawText(ctx, text, SIZE) {
     ctx.fillText(line, 0, -totalH / 2 + lineH * (i + 0.5));
   });
 
-  /* Glorien. Foer laa det en liten skygge her, men den var for svak til
-     aa redde hvit tekst paa en lys bakgrunn — og det var nettopp den
-     kombinasjonen som fikk et medlem til aa tro at teksten ikke kom inn.
-     Naa legges en myk glorie i motsatt lyshet av selve fargen, i to
-     omganger for aa gjoere den tett nok, foer bokstavene tegnes rent
-     oppaa. Da leses enhver farge paa enhver bakgrunn, uten at teksten
-     faar en hard kontur rundt seg. */
-  ctx.shadowColor = kontrastTil(state.textColor);
-  ctx.shadowBlur = fontSize * 0.16;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-  skriv();
-  skriv();
-
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
+  /* Glorien er ikke en effekt, den er en nodloesning. Maleriet skal se
+     rent ut, saa den legges bare paa naar teksten ellers ville forsvinne
+     i bildet under — hvit tekst paa en lys bakgrunn, svart paa en moerk.
+     Er forskjellen stor nok, tegnes bokstavene helt rene. */
+  if (trengerGlorie(state.textColor, bunnCtx, SIZE, state.textPos, totalH)) {
+    ctx.shadowColor = kontrastTil(state.textColor);
+    ctx.shadowBlur = fontSize * 0.16;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    skriv();
+    skriv();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+  }
   skriv();
 
   ctx.restore();
@@ -3737,18 +3773,22 @@ function redrawSigOverlay() {
 
   // Text on its own overlay, opacity via CSS
   textOv.style.opacity = String((state.textOpacity != null) ? state.textOpacity : 1);
+  /* Bildet ligger paa sitt eget lerret under de to gjennomsiktige — det
+     er dét glorien maa maales mot. */
+  let bunn = null;
+  try { bunn = document.getElementById('sigCanvas').getContext('2d'); } catch (e) {}
   if (state.text && state.text.trim()) {
-    drawText(tctx, state.text, SIZE);
+    drawText(tctx, state.text, SIZE, bunn);
   }
 
   // Signature on its own overlay, opacity via CSS
   sigOv.style.opacity = String((state.sigOpacity != null) ? state.sigOpacity : 0.9);
   if (state.sig && state.sig.trim()) {
-    drawSignature(sctx, state.sig, SIZE);
+    drawSignature(sctx, state.sig, SIZE, bunn);
   }
 }
 
-function drawSignature(ctx, text, SIZE) {
+function drawSignature(ctx, text, SIZE, bunnCtx) {
   const fontSize = Math.round(state.sigSize * SIZE / 360);
   const pos = state.sigPos || sigDefaultPos();
   const cx = SIZE * pos.x;
@@ -3762,7 +3802,19 @@ function drawSignature(ctx, text, SIZE) {
   ctx.fillStyle = state.sigColor || '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // No shadow — clean signature (matches Pro)
+
+  /* Ren signatur som i Pro — helt til den ikke synes. Da faar den samme
+     nodloesning som teksten, og bare da. */
+  if (trengerGlorie(state.sigColor || '#ffffff', bunnCtx, SIZE, pos, fontSize)) {
+    ctx.shadowColor = kontrastTil(state.sigColor || '#ffffff');
+    ctx.shadowBlur = fontSize * 0.16;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillText(text, 0, 0);
+    ctx.fillText(text, 0, 0);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+  }
   ctx.fillText(text, 0, 0);
 
   ctx.restore();
@@ -3911,7 +3963,7 @@ async function saveAndContinue() {
   if (state.text && state.text.trim()) {
     const tl = document.createElement('canvas');
     tl.width = SIZE; tl.height = SIZE;
-    drawText(tl.getContext('2d'), state.text, SIZE);
+    drawText(tl.getContext('2d'), state.text, SIZE, octx);
     octx.globalAlpha = (state.textOpacity != null) ? state.textOpacity : 1.0;
     octx.drawImage(tl, 0, 0);
     octx.globalAlpha = 1.0;
@@ -3921,7 +3973,7 @@ async function saveAndContinue() {
   if (state.sig && state.sig.trim()) {
     const sl = document.createElement('canvas');
     sl.width = SIZE; sl.height = SIZE;
-    drawSignature(sl.getContext('2d'), state.sig, SIZE);
+    drawSignature(sl.getContext('2d'), state.sig, SIZE, octx);
     octx.globalAlpha = (state.sigOpacity != null) ? state.sigOpacity : 0.9;
     octx.drawImage(sl, 0, 0);
     octx.globalAlpha = 1.0;
@@ -4742,7 +4794,7 @@ async function rerenderAtSize(meta, SIZE) {
     // opacity — same technique as saveAndContinue, so Print/Canvas match Web.
     const tl = document.createElement('canvas');
     tl.width = SIZE; tl.height = SIZE;
-    drawText(tl.getContext('2d'), meta.text, SIZE);
+    drawText(tl.getContext('2d'), meta.text, SIZE, octx);
     octx.globalAlpha = state.textOpacity;
     octx.drawImage(tl, 0, 0);
     octx.globalAlpha = 1.0;
@@ -4773,7 +4825,7 @@ async function rerenderAtSize(meta, SIZE) {
     // Temp layer at full alpha, then composite with chosen opacity.
     const sl = document.createElement('canvas');
     sl.width = SIZE; sl.height = SIZE;
-    drawSignature(sl.getContext('2d'), meta.sig, SIZE);
+    drawSignature(sl.getContext('2d'), meta.sig, SIZE, octx);
     octx.globalAlpha = state.sigOpacity;
     octx.drawImage(sl, 0, 0);
     octx.globalAlpha = 1.0;
