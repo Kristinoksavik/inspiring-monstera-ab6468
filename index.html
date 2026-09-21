@@ -2445,8 +2445,16 @@ function rotateBackground() {
     const dx = e.clientX - lastX, dy = e.clientY - lastY;
     lastX = e.clientX; lastY = e.clientY;
     if (!state.bgPan) state.bgPan = { x: 0.5, y: 0.5 };
-    state.bgPan.x = Math.max(0, Math.min(1, state.bgPan.x - dx / rect.width));
-    state.bgPan.y = Math.max(0, Math.min(1, state.bgPan.y - dy / rect.height));
+    /* Utsnittet ligger i bildets egne retninger. Er bakgrunnen rotert, peker
+       de et annet sted paa skjermen, saa draget snus tilbake foerst. Ellers
+       maatte man dra opp-ned for aa flytte bildet sidelengs. */
+    const rot = ((((state.bgRotation || 0) % 360) + 360) % 360);
+    let du = dx, dv = dy, bw = rect.width, bh = rect.height;
+    if (rot === 90)       { du = dy;  dv = -dx; bw = rect.height; bh = rect.width; }
+    else if (rot === 180) { du = -dx; dv = -dy; }
+    else if (rot === 270) { du = -dy; dv = dx;  bw = rect.height; bh = rect.width; }
+    state.bgPan.x = Math.max(0, Math.min(1, state.bgPan.x - du / bw));
+    state.bgPan.y = Math.max(0, Math.min(1, state.bgPan.y - dv / bh));
     drawBgPreview(_bgPreviewImg);
     scheduleSaveWorkingState();
   });
@@ -4448,6 +4456,10 @@ async function downloadPortraitOnly() {
     octx.globalAlpha = (m.opacity != null) ? m.opacity : 1.0;
     octx.drawImage(portraitDrawable(p, m.effect, m.portraitMask || null), cx - portraitW/2, cy - portraitH/2, portraitW, portraitH);
     octx.globalAlpha = 1.0;
+    /* Stemningen (filteret fra steg 4) skal vaere med ogsaa her. Foer kom
+       portrettet ut i originalfarger selv om maleriet var lagret med
+       stemning. Filteret roerer bare fargene, gjennomsiktigheten staar. */
+    if (typeof applyPixelFilter === 'function') applyPixelFilter(octx, out.width, out.height, m.filter || 'none');
     const dataUrl = out.toDataURL('image/png'); // PNG bevarer gjennomsiktighet
     const fname = 'portrett_' + new Date(item.created).toISOString().slice(0,10) + '_' + size + '.png';
     closeDownloadModal();
@@ -4731,6 +4743,15 @@ function roundRect(ctx, x, y, w, h, r) {
 
 // Rerender a composition at any size from its saved layers (high quality)
 async function rerenderAtSize(meta, SIZE) {
+  /* Bakgrunnen tegnes med utsnittet som staar i state. Her skal det vaere
+     utsnittet som ble lagret med maleriet, saa det byttes inn mens vi tegner. */
+  const _for = { pan: state.bgPan, rot: state.bgRotation };
+  state.bgPan = meta.bgPan || { x: 0.5, y: 0.5 };
+  state.bgRotation = meta.bgRotation || 0;
+  try { return await _rerenderAtSize(meta, SIZE); }
+  finally { state.bgPan = _for.pan; state.bgRotation = _for.rot; }
+}
+async function _rerenderAtSize(meta, SIZE) {
   const out = document.createElement('canvas');
   out.width = SIZE; out.height = SIZE;
   const octx = out.getContext('2d');
@@ -7647,6 +7668,7 @@ init();
   }
 
   var storrelsesSkyvere = [];
+  var alleSkyvere = {};
   function settPensel(v){
     pensel = v;
     storrelsesSkyvere.forEach(function(s){
@@ -7670,9 +7692,21 @@ init();
     s.type = 'range'; s.min = min; s.max = maks; s.value = verdi;
     s.style.cssText = 'width:100%;accent-color:#c4944a;';
     function vis(){ tall.textContent = s.value + (enhet || ''); }
-    s.addEventListener('input', function(){ ved(parseInt(s.value, 10)); vis(); });
+    s._vis = vis;
+    s.addEventListener('input', function(){
+      ved(parseInt(s.value, 10)); vis();
+      /* Det finnes ett panel i portrettsteget og ett i komposisjonen, men
+         bare én pensel. Foer fulgte bare stoerrelsen med over: satte man
+         styrken til 40 % i portrettsteget, sto det fortsatt 100 % i
+         komposisjonen, mens viskelaeret visket med 40. Naa viser begge
+         panelene alltid det som faktisk gjelder. */
+      (alleSkyvere[nokkel] || []).forEach(function(a){
+        if (a !== s){ a.value = s.value; if (a._vis) a._vis(); }
+      });
+    });
     vis();
     boks.appendChild(merke); boks.appendChild(s);
+    (alleSkyvere[nokkel] = alleSkyvere[nokkel] || []).push(s);
     if (nokkel === 'storrelse') storrelsesSkyvere.push(s);
     return boks;
   }
@@ -7936,6 +7970,9 @@ init();
     state.portraitOriginal = p.original || p.bilde;
     state.portraitProcessed = p.bilde;
     state.portraitMask = p.maske || null;
+    /* Et portrett fra biblioteket er en ny start, akkurat som en ny
+       opplasting. Stemningen fra forrige maleri skal ikke henge igjen. */
+    try { if (typeof nullstillStemning === 'function') nullstillStemning(); } catch(e){}
     state.portraitKept = false;
     state.skipPortrait = false;
     state.portraitPan = { x: 0.5, y: 0.5 };
