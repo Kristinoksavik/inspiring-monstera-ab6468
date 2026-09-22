@@ -7828,6 +7828,14 @@ init();
     c.addEventListener('pointerup', oppPaa, true);
     c.addEventListener('pointercancel', oppPaa, true);
     c.addEventListener('pointerleave', function(){ skjulRing(); }, true);
+    /* 23. sept (Lena): paa iPad og telefon sendes ogsaa beroerings-
+       hendelser, og dem stoppet ikke pennestroekene over. Da fikk
+       flytte-funksjonen dem, og portrettet fulgte med penselen. Naar
+       viskelaeret staar paa, stoppes de her. */
+    var stopp = function(e){ if (paa){ e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); } };
+    ['touchstart','touchmove','touchend','touchcancel','mousedown','mousemove','mouseup'].forEach(function(t){
+      c.addEventListener(t, stopp, { capture: true, passive: false });
+    });
     return true;
   }
 
